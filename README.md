@@ -23,7 +23,7 @@
 
 ## 路径约定
 
-新的路径入口位于 `src/lieshi_ocr/paths.py`。它只负责发现项目根目录和计算 `data/scan/<batch>/`、`data/work/<batch>/`、`data/output/<batch>/` 等标准目录，不会创建目录或读写真实数据。详细说明见 `docs/path_management.md`。
+新的路径入口位于 `src/lieshi_ocr/paths.py`。它只负责发现项目根目录和计算 `data/scan/{batch}/`、`data/work/{batch}/`、`data/output/{batch}/` 等标准目录，不会创建目录或读写真实数据。详细说明见 `docs/path_management.md`。
 
 ## 数据契约
 

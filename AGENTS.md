@@ -17,9 +17,9 @@
 
 ## 目录约定
 
-- `data/scan/<batch>/`：原始扫描 PDF。
-- `data/work/<batch>/`：中间裁剪、OCR、MinerU 结果。
-- `data/output/<batch>/`：输出报告和候选 Excel。
+- `data/scan/{batch}/`：原始扫描 PDF。
+- `data/work/{batch}/`：中间裁剪、OCR、MinerU 结果。
+- `data/output/{batch}/`：输出报告和候选 Excel。
 - `data/private/`：真实基线 Excel 和不应公开的数据。
 - `src/lieshi_ocr/`：后续正式代码目录。
 - `scripts/legacy/`：后续历史脚本目录。
