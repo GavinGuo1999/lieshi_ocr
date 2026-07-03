@@ -29,6 +29,10 @@
 
 新的 JSON 契约入口位于 `src/lieshi_ocr/schemas.py`，覆盖 OCR 详情记录、批次 manifest、correction items 和 Excel dry-run report。详细说明见 `docs/data_contract.md`。
 
+## 裁剪基础模块
+
+裁剪相关基础模块位于 `src/lieshi_ocr/crop/`，目前只包含纯 Python 的矩形、版式、命名和 manifest 记录工具，不执行真实 PDF 裁剪。详细说明见 `docs/crop_modules.md`。
+
 ## 本地检查
 
 当前已有路径约定的最小单元测试。每轮完成后，至少运行：
