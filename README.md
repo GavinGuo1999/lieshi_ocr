@@ -25,6 +25,10 @@
 
 新的路径入口位于 `src/lieshi_ocr/paths.py`。它只负责发现项目根目录和计算 `data/scan/<batch>/`、`data/work/<batch>/`、`data/output/<batch>/` 等标准目录，不会创建目录或读写真实数据。详细说明见 `docs/path_management.md`。
 
+## 数据契约
+
+新的 JSON 契约入口位于 `src/lieshi_ocr/schemas.py`，覆盖 OCR 详情记录、批次 manifest、correction items 和 Excel dry-run report。详细说明见 `docs/data_contract.md`。
+
 ## 本地检查
 
 当前已有路径约定的最小单元测试。每轮完成后，至少运行：
