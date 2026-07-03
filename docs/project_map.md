@@ -66,4 +66,6 @@ lieshi_ocr/
 
 - `src/lieshi_ocr/config.py`：保存项目级常量和环境变量配置。
 - `src/lieshi_ocr/paths.py`：计算项目根目录、标准数据目录和批次路径。
+- `src/lieshi_ocr/schemas.py`：定义 OCR manifest、correction item 和 Excel dry-run report 的数据契约。
 - `tests/test_paths.py`：验证路径发现和批次路径约定。
+- `tests/test_schemas.py`：验证 JSON 契约的关键校验规则。
