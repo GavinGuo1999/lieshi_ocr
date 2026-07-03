@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+.env
+.env.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Real data and generated outputs
+data/
+log/
+tmp/
+output/
+lieshi_render/
+*.pdf
+
+# Excel workbooks are treated as sensitive by default.
+# Add only sanitized fixtures under tests/fixtures/ when needed.
+*.xlsx
+!tests/fixtures/**/*.xlsx
+~$*.xlsx
+*.xlsm
+
+# MinerU / OCR cache / model cache
+.mineru/
+models/
+cache/
+.cache/
+
+# Logs
+*.log

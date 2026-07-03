@@ -1,0 +1,17 @@
+# 祁县烈士英名录 PDF 数据处理项目
+# Python >= 3.8
+
+# MinerU PDF 提取 (Flash API)
+mineru
+
+# OCR 编号识别
+rapidocr-onnxruntime
+
+# PDF 图像处理
+PyMuPDF>=1.23.0
+
+# Excel 读写
+openpyxl>=3.0.0
+
+# 图像处理
+Pillow>=9.0.0
