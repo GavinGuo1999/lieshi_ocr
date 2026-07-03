@@ -21,12 +21,17 @@
 
 目标目录会逐步演进到 `src/lieshi_ocr/`、`scripts/legacy/`、`tests/fixtures/` 和 `docs/` 的结构。迁移和重构必须小步执行，不能在未审计前改变 Excel 业务输出。
 
+## 路径约定
+
+新的路径入口位于 `src/lieshi_ocr/paths.py`。它只负责发现项目根目录和计算 `data/scan/<batch>/`、`data/work/<batch>/`、`data/output/<batch>/` 等标准目录，不会创建目录或读写真实数据。详细说明见 `docs/path_management.md`。
+
 ## 本地检查
 
-当前还没有正式测试套件。文档轮完成后，至少运行：
+当前已有路径约定的最小单元测试。每轮完成后，至少运行：
 
 ```powershell
-python -m compileall old_code new_code _archive
+python -m compileall src old_code new_code _archive
+python -m unittest discover -s tests
 git status
 git diff --stat main...HEAD
 ```

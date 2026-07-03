@@ -25,6 +25,7 @@ lieshi_ocr/
     excel_rules.md
     codex_workflow.md
     audit_v5.md
+    path_management.md
 
   src/lieshi_ocr/
     cli.py
@@ -60,3 +61,9 @@ lieshi_ocr/
 3. 不删除 legacy 代码。
 4. 每轮只做一个小主题，完成后交给人工验收。
 5. 需要测试数据时，创建小型脱敏 fixture，放入 `tests/fixtures/`。
+
+## 当前新增正式代码
+
+- `src/lieshi_ocr/config.py`：保存项目级常量和环境变量配置。
+- `src/lieshi_ocr/paths.py`：计算项目根目录、标准数据目录和批次路径。
+- `tests/test_paths.py`：验证路径发现和批次路径约定。
