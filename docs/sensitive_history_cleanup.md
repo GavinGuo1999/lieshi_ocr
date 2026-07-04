@@ -10,7 +10,7 @@
 
 清理原因：
 
-- 该文件曾包含公开仓库不应暴露的真实填报单位、填表人、电话和具体样本文本。
+- 该文件曾包含公开仓库不应暴露的真实联系信息字段和具体样本文本。
 
 清理方式：
 
@@ -29,7 +29,6 @@ git log --all --oneline --decorate -- _archive/test_output.md
 ```powershell
 git log --all --oneline --decorate -- _archive/test_output.md
 git ls-files _archive/test_output.md
-git grep -n "填表人\|联系电话\|电话\|填报单位"
 python -m compileall src old_code new_code _archive
 python -m unittest discover -s tests
 ```
