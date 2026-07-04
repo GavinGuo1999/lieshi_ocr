@@ -50,6 +50,20 @@ class PathConventionTests(unittest.TestCase):
             self.assertEqual(batch.output, root.resolve() / "data" / "output" / "20260626")
             self.assertFalse((root / "data").exists())
 
+    def test_private_path_points_to_local_sensitive_data_area(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+
+            paths = ProjectPaths.discover(root)
+
+            self.assertEqual(paths.private, root.resolve() / "data" / "private")
+            self.assertEqual(
+                paths.private_baseline("英名录25版-祁县-二审_v4.xlsx"),
+                root.resolve() / "data" / "private" / "baselines" / "英名录25版-祁县-二审_v4.xlsx",
+            )
+            self.assertFalse((root / "data").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

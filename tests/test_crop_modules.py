@@ -7,7 +7,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from lieshi_ocr.crop import REGION_PIPELINE_LAYOUT, PdfRect, safe_filename, unique_output_paths
+from lieshi_ocr.crop import REGION_PIPELINE_LAYOUT, PdfRect, build_crop_precheck_manifest, safe_filename, unique_output_paths
 from lieshi_ocr.crop.records import CropManifest, CropRecord, RegionRecord
 
 
@@ -73,6 +73,24 @@ class CropModuleTests(unittest.TestCase):
 
         self.assertEqual(payload["regions"]["code"], [1, 2, 3, 4])
         self.assertEqual(payload["records"][0]["regions"][0]["size"], [2, 2])
+
+    def test_crop_precheck_manifest_is_read_only_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "scan" / "example.pdf"
+
+            manifest = build_crop_precheck_manifest("20260626", [source])
+            payload = manifest.to_json()
+
+            self.assertEqual(payload["batch"], "20260626")
+            self.assertEqual(payload["scan_dir"], "data/scan/20260626")
+            self.assertEqual(payload["out_dir"], "data/work/20260626/crop_precheck")
+            self.assertEqual(payload["layout"], "review_form_split")
+            self.assertEqual(payload["regions"]["code"], [395, 45, 545, 90])
+            self.assertEqual(payload["records"][0]["source_stem"], "example")
+            self.assertEqual(payload["records"][0]["regions"][0]["pdf"], "data/work/20260626/crop_precheck/example__code.pdf")
+            self.assertFalse(source.exists())
+            self.assertFalse((root / "data").exists())
 
 
 if __name__ == "__main__":
