@@ -17,9 +17,9 @@
 
 ## 目录约定
 
-- `data/scan/<batch>/`：原始扫描 PDF。
-- `data/work/<batch>/`：中间裁剪、OCR、MinerU 结果。
-- `data/output/<batch>/`：输出报告和候选 Excel。
+- `data/scan/{batch}/`：原始扫描 PDF。
+- `data/work/{batch}/`：中间裁剪、OCR、MinerU 结果。
+- `data/output/{batch}/`：输出报告和候选 Excel。
 - `data/private/`：真实基线 Excel 和不应公开的数据。
 - `src/lieshi_ocr/`：后续正式代码目录。
 - `scripts/legacy/`：后续历史脚本目录。
@@ -36,3 +36,9 @@
 5. 运行了哪些测试。
 6. 是否有失败测试。
 7. 下一步建议。
+
+## Codex 完成任务后的固定动作
+
+1. 将本轮工作结果写入项目 Markdown 文档，优先更新对应主题文档；没有合适文档时更新 `docs/codex_workflow.md`。
+2. 验证通过后直接提交本轮改动，提交信息必须说明本轮范围。
+3. 提交后推送当前工作分支到远端，除非用户明确要求暂不推送。
