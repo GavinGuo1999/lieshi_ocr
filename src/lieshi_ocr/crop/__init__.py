@@ -3,6 +3,7 @@
 from .geometry import PdfRect
 from .layouts import REGION_PIPELINE_LAYOUT, REVIEW_FORM_SPLIT_LAYOUT, USEFUL_AREA_LAYOUT
 from .naming import safe_filename, unique_output_paths
+from .precheck import build_crop_precheck_manifest
 from .records import CropManifest, CropRecord, RegionRecord
 
 __all__ = [
@@ -13,6 +14,7 @@ __all__ = [
     "REVIEW_FORM_SPLIT_LAYOUT",
     "RegionRecord",
     "USEFUL_AREA_LAYOUT",
+    "build_crop_precheck_manifest",
     "safe_filename",
     "unique_output_paths",
 ]

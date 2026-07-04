@@ -7,9 +7,11 @@
 - `src/lieshi_ocr/crop/geometry.py`：PDF 点坐标矩形 `PdfRect`，支持裁剪到页面范围、转 manifest 列表、缩放到像素边界、像素框反算 PDF 框。
 - `src/lieshi_ocr/crop/layouts.py`：当前扫描版式的稳定区域定义，包括整块有效区域、三段拆分区域、region pipeline 候选区域。
 - `src/lieshi_ocr/crop/naming.py`：裁剪输出文件名清洗和 PDF/JSON 成对唯一命名。
+- `src/lieshi_ocr/crop/precheck.py`：只读裁剪预检计划，基于输入 PDF 路径和布局生成 manifest 数据。
 - `src/lieshi_ocr/crop/records.py`：裁剪 manifest 的轻量记录模型。
 
 这些模块都是纯 Python，不依赖 PyMuPDF、OpenCV、Pillow 或 OCR 引擎。
+`precheck.py` 不打开 PDF、不创建目录、不写 JSON 文件、不运行 OCR、不读写 Excel。
 
 ## 当前保留的旧实现
 
@@ -25,8 +27,8 @@
 
 ## 下一步
 
-建议下一轮优先做 OCR/解析拆分前的接口整理：
+建议下一轮优先继续做裁剪只读预检验收：
 
-1. 把 OCR 原始行、清洗文本、结构化 correction items 的边界写清楚。
-2. 保持 OCR 引擎调用留在 legacy 脚本中，不在公共 schema 层引入重型依赖。
-3. 用脱敏 fixture 验证解析函数，而不是跑真实扫描件。
+1. 用脱敏 fixture 验证裁剪预检 manifest 的字段稳定性。
+2. 保持真实 PDF 裁剪和 OCR 引擎调用留在 legacy 脚本中。
+3. 再进入 OCR/解析拆分前，先确认 manifest 能覆盖后续裁剪输出需要的字段。
