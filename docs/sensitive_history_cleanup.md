@@ -38,3 +38,21 @@ python -m unittest discover -s tests
 - 本轮使用历史重写，会改变 commit hash。
 - 推送到 GitHub 需要 force push `main`、相关分支和 tags。
 - 其他本地 clone 应重新 clone，或按 `git-filter-repo` 文档完成本地清理和 rebase。
+
+## 重新 clone 后复验
+
+历史重写和强推完成后，已从远端重新 clone 到本地干净副本，并完成以下复验：
+
+```powershell
+git log --all --oneline --decorate -- _archive/test_output.md
+git ls-files _archive/test_output.md
+python -m compileall src old_code new_code _archive
+python -m unittest discover -s tests
+```
+
+复验结果：
+
+- `_archive/test_output.md` 在新 clone 的历史和当前跟踪文件中均无输出。
+- 只剩 legacy 脚本中的正则清洗词命中，不是原样本文档内容。
+- `compileall` 通过。
+- 单元测试通过。
