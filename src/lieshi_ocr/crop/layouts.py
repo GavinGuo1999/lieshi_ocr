@@ -29,6 +29,11 @@ class CropLayout:
     def as_manifest_regions(self) -> dict[str, list[float]]:
         return {region.name: region.rect.to_list() for region in self.regions}
 
+    def clipped_regions(self, page_rect: PdfRect) -> dict[str, PdfRect]:
+        """Return layout regions clipped to a caller-provided page rectangle."""
+
+        return {region.name: region.rect.clip_to(page_rect) for region in self.regions}
+
 
 USEFUL_AREA_LAYOUT = CropLayout(
     name="useful_area",
