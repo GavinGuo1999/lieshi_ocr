@@ -15,6 +15,7 @@ from .line_rules import (
     region_output_names,
 )
 from .naming import safe_filename, unique_output_paths
+from .pdf_adapter import PdfCropPlan, plan_pdf_crop, read_pdf_page_rect, save_pdf_crop
 from .precheck import build_crop_precheck_manifest
 from .records import CropManifest, CropRecord, RegionRecord
 
@@ -24,6 +25,7 @@ __all__ = [
     "CropLayout",
     "CropRecord",
     "PdfRect",
+    "PdfCropPlan",
     "PixelBounds",
     "REGION_PIPELINE_LAYOUT",
     "REVIEW_FORM_SPLIT_LAYOUT",
@@ -37,7 +39,10 @@ __all__ = [
     "group_positions",
     "legacy_region_stem",
     "name_cell_bounds_from_lines",
+    "plan_pdf_crop",
+    "read_pdf_page_rect",
     "region_output_names",
     "safe_filename",
+    "save_pdf_crop",
     "unique_output_paths",
 ]
