@@ -9,6 +9,7 @@
 - `src/lieshi_ocr/crop/line_rules.py`：从 legacy 线检测脚本中抽出的纯几何规则，输入模拟线坐标，输出 name/correction 单元格像素边界和命名规则。
 - `src/lieshi_ocr/crop/naming.py`：裁剪输出文件名清洗和 PDF/JSON 成对唯一命名。
 - `src/lieshi_ocr/crop/pdf_adapter.py`：PyMuPDF 最小 adapter，读取页尺寸、生成 dry-run 裁剪计划，或在显式调用时保存单个裁剪 PDF。
+- `src/lieshi_ocr/crop/batch.py`：裁剪批处理计划和显式写出入口，扫描 `data/scan/{batch}/`，默认只写 manifest，显式要求时写裁剪 PDF。
 - `src/lieshi_ocr/crop/precheck.py`：只读裁剪预检计划，基于输入 PDF 路径和布局生成 manifest 数据。
 - `src/lieshi_ocr/crop/records.py`：裁剪 manifest 的轻量记录模型。
 
@@ -17,6 +18,7 @@
 `line_rules.py` 不做图像二值化或线检测，只接收调用方已经得到的线坐标或测试构造的模拟坐标。
 `CropLayout.clipped_regions()` 只根据调用方传入的页面矩形裁剪固定区域，不读取真实 PDF 页面。
 `pdf_adapter.py` 不扫描批次目录，不运行 OCR，不读写 Excel；默认 plan 函数不写文件，只有 `save_pdf_crop()` 会写到调用方显式传入的输出路径。
+`batch.py` 只扫描标准批次 PDF 目录并生成 crop manifest；只有 CLI 或调用方显式传入 `write_crops=True` 时才保存裁剪 PDF。
 
 ## 当前保留的旧实现
 
