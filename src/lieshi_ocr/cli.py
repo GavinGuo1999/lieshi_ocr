@@ -8,7 +8,9 @@ from pathlib import Path
 
 from .config import DEFAULT_BATCH
 from .crop.batch import build_crop_manifest, default_crop_out_dir, discover_batch_pdfs, write_crop_manifest
+from .ocr.rapidocr_engine import create_ocr_engine
 from .paths import ProjectPaths
+from .pipeline.extract_text import extract_text_manifest, write_text_manifest
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -32,11 +34,22 @@ def main(argv: list[str] | None = None) -> int:
     batch.add_argument("--dry-run", action="store_true", help="Compatibility flag; dry-run is the default.")
     batch.add_argument("--root", default="", help="Project root override.")
 
+    text = subparsers.add_parser("extract-text", help="Build text_manifest.json from crop_manifest.json.")
+    text.add_argument("--batch", default=DEFAULT_BATCH)
+    text.add_argument("--crop-manifest", default="", help="Defaults to data/work/{batch}/crop/crop_manifest.json.")
+    text.add_argument("--out-dir", default="", help="Defaults to data/work/{batch}/text.")
+    text.add_argument("--manifest", default="", help="Defaults to <out-dir>/text_manifest.json.")
+    text.add_argument("--engine", default="none", choices=["none", "rapidocr"], help="Real OCR runs only when explicitly set.")
+    text.add_argument("--mineru-text-dir", default="", help="Optional explicit MinerU markdown/text directory.")
+    text.add_argument("--root", default="", help="Project root override.")
+
     args = parser.parse_args(argv)
     if args.command == "crop-one":
         return _crop_one(args)
     if args.command == "crop-batch":
         return _crop_batch(args)
+    if args.command == "extract-text":
+        return _extract_text(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 
@@ -53,6 +66,16 @@ def _out_dir(paths: ProjectPaths, batch: str, out_dir: str) -> Path:
 
 def _manifest_path(out_dir: Path, manifest: str) -> Path:
     return Path(manifest) if manifest else out_dir / "crop_manifest.json"
+
+
+def _text_out_dir(paths: ProjectPaths, batch: str, out_dir: str) -> Path:
+    if out_dir:
+        return Path(out_dir)
+    return paths.batch(batch).work / "text"
+
+
+def _text_manifest_path(out_dir: Path, manifest: str) -> Path:
+    return Path(manifest) if manifest else out_dir / "text_manifest.json"
 
 
 def _crop_one(args: argparse.Namespace) -> int:
@@ -91,6 +114,37 @@ def _crop_batch(args: argparse.Namespace) -> int:
     )
     write_crop_manifest(manifest, manifest_path)
     _print_summary(manifest.to_json(), manifest_path)
+    return 0
+
+
+def _extract_text(args: argparse.Namespace) -> int:
+    paths = _project_paths(args.root)
+    batch_paths = paths.batch(args.batch)
+    crop_manifest = Path(args.crop_manifest) if args.crop_manifest else batch_paths.work / "crop" / "crop_manifest.json"
+    out_dir = _text_out_dir(paths, args.batch, args.out_dir)
+    manifest_path = _text_manifest_path(out_dir, args.manifest)
+    engine = create_ocr_engine(args.engine)
+    text_manifest = extract_text_manifest(
+        crop_manifest_path=crop_manifest,
+        out_dir=out_dir,
+        ocr_engine=engine,
+        mineru_text_dir=args.mineru_text_dir or None,
+    )
+    write_text_manifest(text_manifest, manifest_path)
+    print(
+        json.dumps(
+            {
+                "batch": text_manifest.batch,
+                "crop_manifest": crop_manifest.as_posix(),
+                "out_dir": out_dir.as_posix(),
+                "manifest": manifest_path.as_posix(),
+                "engine": args.engine,
+                "total": len(text_manifest.records),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 
