@@ -10,6 +10,7 @@ from .config import DEFAULT_BATCH
 from .crop.batch import build_crop_manifest, default_crop_out_dir, discover_batch_pdfs, write_crop_manifest
 from .ocr.rapidocr_engine import create_ocr_engine
 from .paths import ProjectPaths
+from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
 from .pipeline.extract_text import extract_text_manifest, write_text_manifest
 
 
@@ -43,6 +44,14 @@ def main(argv: list[str] | None = None) -> int:
     text.add_argument("--mineru-text-dir", default="", help="Optional explicit MinerU markdown/text directory.")
     text.add_argument("--root", default="", help="Project root override.")
 
+    review = subparsers.add_parser("build-review", help="Build correction_records.json and review_report.md.")
+    review.add_argument("--batch", default=DEFAULT_BATCH)
+    review.add_argument("--text-manifest", default="", help="Defaults to data/work/{batch}/text/text_manifest.json.")
+    review.add_argument("--out-dir", default="", help="Defaults to data/work/{batch}/review.")
+    review.add_argument("--records", default="", help="Defaults to <out-dir>/correction_records.json.")
+    review.add_argument("--report", default="", help="Defaults to <out-dir>/review_report.md.")
+    review.add_argument("--root", default="", help="Project root override.")
+
     args = parser.parse_args(argv)
     if args.command == "crop-one":
         return _crop_one(args)
@@ -50,6 +59,8 @@ def main(argv: list[str] | None = None) -> int:
         return _crop_batch(args)
     if args.command == "extract-text":
         return _extract_text(args)
+    if args.command == "build-review":
+        return _build_review(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 
@@ -76,6 +87,20 @@ def _text_out_dir(paths: ProjectPaths, batch: str, out_dir: str) -> Path:
 
 def _text_manifest_path(out_dir: Path, manifest: str) -> Path:
     return Path(manifest) if manifest else out_dir / "text_manifest.json"
+
+
+def _review_out_dir(paths: ProjectPaths, batch: str, out_dir: str) -> Path:
+    if out_dir:
+        return Path(out_dir)
+    return paths.batch(batch).work / "review"
+
+
+def _review_records_path(out_dir: Path, records: str) -> Path:
+    return Path(records) if records else out_dir / "correction_records.json"
+
+
+def _review_report_path(out_dir: Path, report: str) -> Path:
+    return Path(report) if report else out_dir / "review_report.md"
 
 
 def _crop_one(args: argparse.Namespace) -> int:
@@ -140,6 +165,32 @@ def _extract_text(args: argparse.Namespace) -> int:
                 "manifest": manifest_path.as_posix(),
                 "engine": args.engine,
                 "total": len(text_manifest.records),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _build_review(args: argparse.Namespace) -> int:
+    paths = _project_paths(args.root)
+    batch_paths = paths.batch(args.batch)
+    text_manifest = Path(args.text_manifest) if args.text_manifest else batch_paths.work / "text" / "text_manifest.json"
+    out_dir = _review_out_dir(paths, args.batch, args.out_dir)
+    records_path = _review_records_path(out_dir, args.records)
+    report_path = _review_report_path(out_dir, args.report)
+    review_manifest = build_review_manifest(text_manifest_path=text_manifest, out_dir=out_dir)
+    write_review_outputs(review_manifest, records_path, report_path)
+    print(
+        json.dumps(
+            {
+                "batch": review_manifest.batch,
+                "text_manifest": text_manifest.as_posix(),
+                "out_dir": out_dir.as_posix(),
+                "records": records_path.as_posix(),
+                "report": report_path.as_posix(),
+                "total": len(review_manifest.records),
             },
             ensure_ascii=False,
             indent=2,
