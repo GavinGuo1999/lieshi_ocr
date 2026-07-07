@@ -11,6 +11,7 @@ from .crop.batch import build_crop_manifest, default_crop_out_dir, discover_batc
 from .ocr.rapidocr_engine import create_ocr_engine
 from .paths import ProjectPaths
 from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
+from .pipeline.excel_update import run_excel_apply, run_excel_dry_run
 from .pipeline.extract_text import extract_text_manifest, write_text_manifest
 
 
@@ -52,6 +53,18 @@ def main(argv: list[str] | None = None) -> int:
     review.add_argument("--report", default="", help="Defaults to <out-dir>/review_report.md.")
     review.add_argument("--root", default="", help="Project root override.")
 
+    dry_run = subparsers.add_parser("excel-dry-run", help="Build Excel dry-run JSON and Markdown reports.")
+    dry_run.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
+    dry_run.add_argument("--records", required=True, help="correction_records.json path.")
+    dry_run.add_argument("--out-dir", required=True, help="Directory for dry_run_report.json/md.")
+
+    apply = subparsers.add_parser("excel-apply", help="Apply approved Excel changes to a candidate workbook.")
+    apply.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
+    apply.add_argument("--dry-run", required=True, help="dry_run_report.json path.")
+    apply.add_argument("--approved", required=True, help="approved_changes.json path.")
+    apply.add_argument("--out-xlsx", required=True, help="Candidate workbook output path.")
+    apply.add_argument("--apply-report", default="", help="Defaults to <out-xlsx>.apply_report.json.")
+
     args = parser.parse_args(argv)
     if args.command == "crop-one":
         return _crop_one(args)
@@ -61,6 +74,10 @@ def main(argv: list[str] | None = None) -> int:
         return _extract_text(args)
     if args.command == "build-review":
         return _build_review(args)
+    if args.command == "excel-dry-run":
+        return _excel_dry_run(args)
+    if args.command == "excel-apply":
+        return _excel_apply(args)
     parser.error(f"Unknown command: {args.command}")
     return 2
 
@@ -196,6 +213,24 @@ def _build_review(args: argparse.Namespace) -> int:
             indent=2,
         )
     )
+    return 0
+
+
+def _excel_dry_run(args: argparse.Namespace) -> int:
+    summary = run_excel_dry_run(base_xlsx=args.base_xlsx, records_path=args.records, out_dir=args.out_dir)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _excel_apply(args: argparse.Namespace) -> int:
+    summary = run_excel_apply(
+        base_xlsx=args.base_xlsx,
+        dry_run_path=args.dry_run,
+        approved_path=args.approved,
+        out_xlsx=args.out_xlsx,
+        apply_report_path=args.apply_report or None,
+    )
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 
 
