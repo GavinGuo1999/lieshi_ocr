@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lieshi-ocr"
+version = "0.1.0"
+description = "Local OCR-to-Excel review pipeline for lieshi records."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl>=3.1",
+    "pymupdf>=1.24",
+]
+
+[project.scripts]
+lieshi-ocr = "lieshi_ocr.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

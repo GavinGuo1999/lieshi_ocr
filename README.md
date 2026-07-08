@@ -33,6 +33,17 @@
 
 裁剪相关基础模块位于 `src/lieshi_ocr/crop/`，目前只包含纯 Python 的矩形、版式、命名和 manifest 记录工具，不执行真实 PDF 裁剪。详细说明见 `docs/crop_modules.md`。
 
+## 安装和 CLI
+
+本项目使用 `src` layout。开发环境推荐可编辑安装：
+
+```powershell
+python -m pip install -e .
+lieshi-ocr --help
+```
+
+完整命令链见 `docs/cli.md`。
+
 ## 本地检查
 
 当前已有路径约定的最小单元测试。每轮完成后，至少运行：
