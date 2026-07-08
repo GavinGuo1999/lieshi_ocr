@@ -92,6 +92,20 @@ def build_review_note(record_warnings: list[str], record_fields: dict[str, str])
     return "\n".join(notes)
 
 
+def append_review_note(old_note: str, new_note: str) -> str:
+    """Append review notes without overwriting or duplicating existing notes."""
+
+    old = cell_text(old_note)
+    new = cell_text(new_note)
+    if not new:
+        return old
+    if not old:
+        return new
+    if new in old:
+        return old
+    return f"{old}\n{new}"
+
+
 def _ensure_period(text: str) -> str:
     text = cell_text(text).strip("。；;，, ")
     if not text:

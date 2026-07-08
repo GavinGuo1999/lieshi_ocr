@@ -14,9 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from lieshi_ocr.excel.apply_changes import apply_approved_changes
 from lieshi_ocr.excel.dry_run import build_excel_dry_run, write_dry_run_outputs
+from lieshi_ocr.excel.rules import append_review_note
 
 
-def _write_workbook(path: Path) -> None:
+def _write_workbook(path: Path, review_note: str = "") -> None:
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     headers = {
@@ -41,6 +42,7 @@ def _write_workbook(path: Path) -> None:
     sheet.cell(2, 9).value = "旧面貌"
     sheet.cell(2, 10).value = "旧单位旧职务"
     sheet.cell(2, 11).value = "旧事迹"
+    sheet.cell(2, 14).value = review_note
     sheet.cell(3, 2).value = "QX-0002"
     sheet.cell(3, 4).value = "李四"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -101,6 +103,11 @@ def _write_records(path: Path, name: str = "张三") -> None:
 
 
 class ExcelDryRunApplyTests(unittest.TestCase):
+    def test_append_review_note_rules(self) -> None:
+        self.assertEqual(append_review_note("", "new-note"), "new-note")
+        self.assertEqual(append_review_note("old-note", "new-note"), "old-note\nnew-note")
+        self.assertEqual(append_review_note("old-note\nnew-note", "new-note"), "old-note\nnew-note")
+
     def test_dry_run_builds_expected_changes_and_warnings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -123,6 +130,39 @@ class ExcelDryRunApplyTests(unittest.TestCase):
             self.assertIn("QX-0001:N2", changes)
             self.assertIn("需人工复核", changes["QX-0001:N2"].new)
             self.assertIn("code_not_found", result_by_code["QX-9999"].warnings)
+
+    def test_review_note_appends_to_existing_n_cell(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "correction_records.json"
+            _write_workbook(xlsx, review_note="existing-note")
+            _write_records(records)
+
+            report = build_excel_dry_run(xlsx, records)
+            changes = {change.id: change for change in report.proposed_changes}
+
+            self.assertIn("QX-0001:N2", changes)
+            self.assertTrue(changes["QX-0001:N2"].new.startswith("existing-note\n"))
+            self.assertIn("manual_review", changes["QX-0001:N2"].new)
+
+    def test_review_note_is_not_duplicated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first_xlsx = root / "first.xlsx"
+            records = root / "correction_records.json"
+            _write_workbook(first_xlsx)
+            _write_records(records)
+            first_report = build_excel_dry_run(first_xlsx, records)
+            first_changes = {change.id: change for change in first_report.proposed_changes}
+            existing_review_note = first_changes["QX-0001:N2"].new
+
+            second_xlsx = root / "second.xlsx"
+            _write_workbook(second_xlsx, review_note=existing_review_note)
+            second_report = build_excel_dry_run(second_xlsx, records)
+            second_ids = [change.id for change in second_report.proposed_changes]
+
+            self.assertNotIn("QX-0001:N2", second_ids)
 
     def test_name_mismatch_skips_record_changes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

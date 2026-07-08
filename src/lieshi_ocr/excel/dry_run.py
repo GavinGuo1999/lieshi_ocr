@@ -18,6 +18,7 @@ from .rules import (
     COL_STORY_BACKUP,
     COLUMN_LABELS,
     TARGET_FIELDS,
+    append_review_note,
     build_review_note,
     build_story,
     cell_text,
@@ -215,7 +216,19 @@ def _build_record_changes(record: JsonDict, sheet: Any, row_index: dict[str, Any
         )
 
     review_note = build_review_note(warnings, {str(key): cell_text(value) for key, value in fields.items()})
-    _append_change(changes, sheet, indexed.row, COL_REVIEW, code, name or indexed.name, review_note, "review warnings and non-column fields", warnings)
+    existing_review_note = cell_text(sheet.cell(indexed.row, COL_REVIEW).value)
+    appended_review_note = append_review_note(existing_review_note, review_note)
+    _append_change(
+        changes,
+        sheet,
+        indexed.row,
+        COL_REVIEW,
+        code,
+        name or indexed.name,
+        appended_review_note,
+        "append review warnings and non-column fields",
+        warnings,
+    )
     return (
         RecordResult(
             code=code,
