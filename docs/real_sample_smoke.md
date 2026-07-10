@@ -71,6 +71,14 @@ lieshi-ocr extract-text --batch 20260626 --crop-manifest data/work/20260626/crop
 
 如果已有 MinerU 文本目录不在 `data/scan/20260626/mineru_text`，把 `--mineru-text-dir` 指向实际 md/txt 目录。只有 MinerU 文本仍为空时，再考虑显式 OCR。
 
+历史 MinerU 输出可以是嵌套结构，例如：
+
+```text
+data/scan/20260626/mineru_text/{带编号姓名和source_stem的目录}/ocr/*.md
+```
+
+`extract-text --mineru-text-dir` 会优先尝试顶层精确文件名；如果找不到，会递归查找父目录名包含 `source_stem` 的 `.md/.txt`，并优先使用 `ocr/` 目录下的 Markdown。
+
 生成人工审核记录和 Markdown 报告：
 
 ```powershell
