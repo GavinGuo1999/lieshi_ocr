@@ -24,6 +24,18 @@ data/scan/{batch}/
 data/scan/20260626/
 ```
 
+如果历史数据保留在批次子目录，例如：
+
+```text
+data/scan/20260626/scan/
+```
+
+不需要复制或移动 PDF。运行 `crop-batch` 时显式传入 `--scan-dir`：
+
+```powershell
+lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limit 3 --write-crops
+```
+
 把可信 v4 基线 Excel 放到私有基线目录：
 
 ```text
@@ -48,14 +60,16 @@ lieshi-ocr --help
 先限制 3 个 PDF，避免第一次 smoke test 产物过多：
 
 ```powershell
-lieshi-ocr crop-batch --batch 20260626 --limit 3 --write-crops
+lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limit 3 --write-crops
 ```
 
-读取裁剪 manifest，生成文本 manifest：
+读取裁剪 manifest，生成文本 manifest。默认 `--engine none` 不会跑真实 OCR；如果已经有 MinerU markdown/text 输出，优先复用它：
 
 ```powershell
-lieshi-ocr extract-text --batch 20260626 --crop-manifest data/work/20260626/crop/crop_manifest.json
+lieshi-ocr extract-text --batch 20260626 --crop-manifest data/work/20260626/crop/crop_manifest.json --mineru-text-dir data/scan/20260626/mineru_text
 ```
+
+如果已有 MinerU 文本目录不在 `data/scan/20260626/mineru_text`，把 `--mineru-text-dir` 指向实际 md/txt 目录。只有 MinerU 文本仍为空时，再考虑显式 OCR。
 
 生成人工审核记录和 Markdown 报告：
 
