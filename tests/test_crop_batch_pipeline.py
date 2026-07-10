@@ -113,6 +113,41 @@ class CropBatchPipelineTests(unittest.TestCase):
             self.assertTrue((out_dir / "crop_manifest.json").exists())
             self.assertFalse((out_dir / "sample__code.pdf").exists())
 
+    def test_cli_crop_batch_accepts_scan_dir_override(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            nested_scan = root / "data" / "scan" / "20260626" / "scan"
+            out_dir = root / "data" / "work" / "20260626" / "crop"
+            _write_tiny_pdf(nested_scan / "sample.pdf")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lieshi_ocr.cli",
+                    "crop-batch",
+                    "--batch",
+                    "20260626",
+                    "--scan-dir",
+                    str(nested_scan),
+                    "--dry-run",
+                    "--root",
+                    str(root),
+                ],
+                cwd=Path(__file__).resolve().parents[1],
+                env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")},
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            payload = json.loads((out_dir / "crop_manifest.json").read_text(encoding="utf-8"))
+
+            self.assertIn('"total": 1', result.stdout)
+            self.assertEqual(payload["scan_dir"], nested_scan.as_posix())
+            self.assertTrue((out_dir / "crop_manifest.json").exists())
+            self.assertFalse((out_dir / "sample__code.pdf").exists())
+
     def test_cli_crop_one_dry_run_uses_explicit_pdf_only(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

@@ -29,6 +29,7 @@ def main(argv: list[str] | None = None) -> int:
 
     batch = subparsers.add_parser("crop-batch", help="Plan or write crops for data/scan/{batch}.")
     batch.add_argument("--batch", default=DEFAULT_BATCH)
+    batch.add_argument("--scan-dir", default="", help="Scan directory override. Defaults to data/scan/{batch}.")
     batch.add_argument("--limit", type=int, default=0)
     batch.add_argument("--out-dir", default="", help="Output directory. Defaults to data/work/{batch}/crop.")
     batch.add_argument("--manifest", default="", help="Manifest path. Defaults to <out-dir>/crop_manifest.json.")
@@ -143,14 +144,15 @@ def _crop_batch(args: argparse.Namespace) -> int:
     batch_paths = paths.batch(args.batch)
     out_dir = _out_dir(paths, args.batch, args.out_dir)
     manifest_path = _manifest_path(out_dir, args.manifest)
-    source_pdfs = discover_batch_pdfs(batch_paths.scan, limit=args.limit)
+    scan_dir = Path(args.scan_dir) if args.scan_dir else batch_paths.scan
+    source_pdfs = discover_batch_pdfs(scan_dir, limit=args.limit)
     if not source_pdfs:
-        raise FileNotFoundError(f"No PDFs found in {batch_paths.scan}")
+        raise FileNotFoundError(f"No PDFs found in {scan_dir}")
 
     manifest = build_crop_manifest(
         batch=args.batch,
         source_pdfs=source_pdfs,
-        scan_dir=batch_paths.scan,
+        scan_dir=scan_dir,
         out_dir=out_dir,
         write_crops=args.write_crops,
     )
