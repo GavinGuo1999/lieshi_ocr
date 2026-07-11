@@ -122,6 +122,7 @@ def render_review_report(manifest: ReviewManifest) -> str:
                 f"- source: `{record.source_pdf}`",
                 f"- source_stem: `{record.source_stem}`",
                 f"- warnings: {', '.join(record.warnings) if record.warnings else 'none'}",
+                f"- unlabeled inference: {'yes' if _has_unlabeled_inference(record.warnings) else 'no'}",
                 "",
                 "| Field | Value |",
                 "| --- | --- |",
@@ -231,6 +232,20 @@ def _dedupe(values: list[str]) -> list[str]:
             seen.add(value)
             result.append(value)
     return result
+
+
+def _has_unlabeled_inference(warnings: list[str]) -> bool:
+    return any(
+        warning in {
+            "unlabeled_text_parsed",
+            "sacrifice_time_inferred",
+            "sacrifice_place_inferred",
+            "sacrifice_reason_inferred",
+            "brief_deed_from_unlabeled_text",
+            "burial_place_inferred",
+        }
+        for warning in warnings
+    )
 
 
 def _escape_table(value: str) -> str:

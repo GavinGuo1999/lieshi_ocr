@@ -50,6 +50,24 @@ data/work/{batch}/review/review_report.md
 
 ## CLI
 
+## Unlabeled MinerU text
+
+`parse_correction_text()` still prefers explicit labelled fields. When no
+recognized label is present, it now performs a conservative unlabeled pass for
+MinerU text:
+
+- Only clear sacrifice and burial patterns are converted to review candidates.
+- Multiple date candidates produce `multiple_date_candidates`; the parser does
+  not force a sacrifice-time choice in that case.
+- Inferred fields always add warnings such as `unlabeled_text_parsed`,
+  `sacrifice_time_inferred`, `sacrifice_place_inferred`,
+  `brief_deed_from_unlabeled_text`, `burial_place_inferred`, and
+  `needs_human_review`.
+- Birth time, join time, political status, nationality, and unit/role are not
+  inferred from ordinary narrative text.
+- `review_report.md` marks whether a record contains unlabeled inference so it
+  can be reviewed manually before any Excel dry-run/apply step.
+
 ```powershell
 python -m lieshi_ocr.cli build-review --batch 20260626 --text-manifest data/work/20260626/text/text_manifest.json
 ```
