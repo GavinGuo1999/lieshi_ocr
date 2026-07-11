@@ -69,6 +69,17 @@ lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limi
 lieshi-ocr extract-text --batch 20260626 --crop-manifest data/work/20260626/crop/crop_manifest.json --mineru-text-dir data/scan/20260626/mineru_text
 ```
 
+When MinerU correction text is available but code/name are still empty, run
+RapidOCR only on the short code/name crops and keep correction on MinerU:
+
+```powershell
+lieshi-ocr extract-text --batch 20260626 --crop-manifest data/work/20260626/crop/crop_manifest.json --mineru-text-dir data/scan/20260626/mineru_text --code-name-engine rapidocr --correction-engine mineru
+```
+
+This mixed route does not OCR the long correction body with RapidOCR. If the
+optional RapidOCR runtime is not installed, the command fails clearly while the
+default `--engine none` and MinerU-only routes remain available.
+
 如果已有 MinerU 文本目录不在 `data/scan/20260626/mineru_text`，把 `--mineru-text-dir` 指向实际 md/txt 目录。只有 MinerU 文本仍为空时，再考虑显式 OCR。
 
 历史 MinerU 输出可以是嵌套结构，例如：

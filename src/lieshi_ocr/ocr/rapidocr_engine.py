@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, Protocol
+from typing import Any, Mapping, Protocol
 
 
 @dataclass(frozen=True)
@@ -62,12 +62,13 @@ class RapidOcrEngine:
             from rapidocr_onnxruntime import RapidOCR
         except ImportError as exc:  # pragma: no cover - depends on optional runtime.
             raise RuntimeError(
-                "RapidOCR is not installed. Install the optional OCR runtime or use --engine none."
+                "RapidOCR is not installed. Install the optional OCR runtime or use --engine none / "
+                "--code-name-engine none."
             ) from exc
         self._ocr = RapidOCR()
 
     def extract_text(self, crop_pdf: str | Path) -> OcrTextResult:
-        result, _ = self._ocr(str(crop_pdf), return_img=False)
+        result, _ = self._ocr(_rapidocr_input(crop_pdf), return_img=False)
         rows = []
         scores = []
         for item in result or []:
@@ -87,3 +88,22 @@ def create_ocr_engine(name: str) -> TextOcrEngine:
     if normalized == "rapidocr":
         return RapidOcrEngine()
     raise ValueError(f"Unknown OCR engine: {name}")
+
+
+def _rapidocr_input(path: str | Path) -> Any:
+    source = Path(path)
+    if source.suffix.lower() != ".pdf":
+        return str(source)
+
+    try:
+        import fitz
+        from PIL import Image
+    except ImportError as exc:  # pragma: no cover - declared runtime dependencies.
+        raise RuntimeError("PyMuPDF and Pillow are required to OCR PDF crops with RapidOCR.") from exc
+
+    with fitz.open(source) as document:
+        if document.page_count == 0:
+            raise RuntimeError(f"PDF has no pages: {source}")
+        page = document.load_page(0)
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+        return Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)

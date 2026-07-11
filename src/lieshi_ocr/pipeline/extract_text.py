@@ -60,7 +60,10 @@ def extract_text_manifest(
     crop_manifest_path: str | Path,
     out_dir: str | Path,
     ocr_engine: TextOcrEngine | None = None,
+    code_name_ocr_engine: TextOcrEngine | None = None,
+    correction_ocr_engine: TextOcrEngine | None = None,
     mineru_text_dir: str | Path | None = None,
+    use_mineru_correction: bool = True,
 ) -> TextManifest:
     """Read a crop manifest and return a text manifest."""
 
@@ -83,12 +86,19 @@ def extract_text_manifest(
             region = str(region_record.get("region", ""))
             crop_pdf = _crop_pdf_from_region(region_record)
             region_warnings = source_warnings + _string_list(region_record.get("warnings", []))
+            region_engine = _engine_for_region(
+                region=region,
+                default_engine=engine,
+                code_name_ocr_engine=code_name_ocr_engine,
+                correction_ocr_engine=correction_ocr_engine,
+            )
             result = _extract_region_text(
                 crop_pdf=crop_pdf,
                 source_stem=source_stem,
                 region=region,
-                engine=engine,
+                engine=region_engine,
                 mineru_text_dir=mineru_text_dir,
+                use_mineru_correction=use_mineru_correction,
             )
             records.append(
                 TextRecord(
@@ -124,8 +134,9 @@ def _extract_region_text(
     region: str,
     engine: TextOcrEngine,
     mineru_text_dir: str | Path | None,
+    use_mineru_correction: bool = True,
 ) -> OcrTextResult:
-    if mineru_text_dir is not None and region == "correction":
+    if use_mineru_correction and mineru_text_dir is not None and region == "correction":
         mineru = read_mineru_text(mineru_text_dir, source_stem=source_stem, region=region)
         if mineru.text:
             return OcrTextResult(text=mineru.text, confidence=1.0, engine="mineru_text", warnings=mineru.warnings)
@@ -136,6 +147,19 @@ def _extract_region_text(
     if engine.name == "rapidocr" and not Path(crop_pdf).exists():
         return OcrTextResult(text="", confidence=0.0, engine=engine.name, warnings=("crop_pdf_not_found",))
     return engine.extract_text(crop_pdf)
+
+
+def _engine_for_region(
+    region: str,
+    default_engine: TextOcrEngine,
+    code_name_ocr_engine: TextOcrEngine | None,
+    correction_ocr_engine: TextOcrEngine | None,
+) -> TextOcrEngine:
+    if region in {"code", "name"}:
+        return code_name_ocr_engine or default_engine
+    if region == "correction":
+        return correction_ocr_engine or default_engine
+    return default_engine
 
 
 def _crop_pdf_from_region(region_record: dict[str, Any]) -> str:
