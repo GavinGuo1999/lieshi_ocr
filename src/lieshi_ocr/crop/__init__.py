@@ -15,6 +15,7 @@ from .line_rules import (
     region_output_names,
 )
 from .naming import safe_filename, unique_output_paths
+from .name_cell_detector import NameCellDetection, detect_name_cell, detect_table_line_centers
 from .batch import (
     CropBatchManifest,
     CropRegionPlan,
@@ -40,6 +41,7 @@ __all__ = [
     "PdfRect",
     "PdfCropPlan",
     "PixelBounds",
+    "NameCellDetection",
     "REGION_PIPELINE_LAYOUT",
     "REVIEW_FORM_SPLIT_LAYOUT",
     "RegionRecord",
@@ -51,6 +53,8 @@ __all__ = [
     "correction_cell_bounds_from_lines",
     "default_crop_out_dir",
     "discover_batch_pdfs",
+    "detect_name_cell",
+    "detect_table_line_centers",
     "group_centers",
     "group_positions",
     "legacy_region_stem",

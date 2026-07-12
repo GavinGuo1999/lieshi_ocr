@@ -33,7 +33,7 @@ data/scan/20260626/scan/
 不需要复制或移动 PDF。运行 `crop-batch` 时显式传入 `--scan-dir`：
 
 ```powershell
-lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limit 3 --write-crops
+lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limit 3 --write-crops --refine-name-cell --write-debug
 ```
 
 把可信 v4 基线 Excel 放到私有基线目录：
@@ -66,7 +66,7 @@ python -m pip install -e ".[ocr]"
 先限制 3 个 PDF，避免第一次 smoke test 产物过多：
 
 ```powershell
-lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limit 3 --write-crops
+lieshi-ocr crop-batch --batch 20260626 --scan-dir data/scan/20260626/scan --limit 3 --write-crops --refine-name-cell --write-debug
 ```
 
 读取裁剪 manifest，生成文本 manifest。默认 `--engine none` 不会跑真实 OCR；如果已经有 MinerU markdown/text 输出，优先复用它：

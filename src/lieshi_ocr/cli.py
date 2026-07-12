@@ -35,6 +35,16 @@ def main(argv: list[str] | None = None) -> int:
     batch.add_argument("--out-dir", default="", help="Output directory. Defaults to data/work/{batch}/crop.")
     batch.add_argument("--manifest", default="", help="Manifest path. Defaults to <out-dir>/crop_manifest.json.")
     batch.add_argument("--write-crops", action="store_true", help="Write crop PDFs to --out-dir.")
+    batch.add_argument(
+        "--refine-name-cell",
+        action="store_true",
+        help="Refine only the name crop using optional table-line detection.",
+    )
+    batch.add_argument(
+        "--write-debug",
+        action="store_true",
+        help="Write name-cell debug overlays; requires --refine-name-cell.",
+    )
     batch.add_argument("--dry-run", action="store_true", help="Compatibility flag; dry-run is the default.")
     batch.add_argument("--root", default="", help="Project root override.")
 
@@ -169,6 +179,8 @@ def _crop_batch(args: argparse.Namespace) -> int:
     source_pdfs = discover_batch_pdfs(scan_dir, limit=args.limit)
     if not source_pdfs:
         raise FileNotFoundError(f"No PDFs found in {scan_dir}")
+    if args.write_debug and not args.refine_name_cell:
+        raise ValueError("--write-debug requires --refine-name-cell")
 
     manifest = build_crop_manifest(
         batch=args.batch,
@@ -176,6 +188,8 @@ def _crop_batch(args: argparse.Namespace) -> int:
         scan_dir=scan_dir,
         out_dir=out_dir,
         write_crops=args.write_crops,
+        refine_name_cell=args.refine_name_cell,
+        write_debug=args.write_debug,
     )
     write_crop_manifest(manifest, manifest_path)
     _print_summary(manifest.to_json(), manifest_path)
@@ -326,6 +340,8 @@ def _print_summary(payload: dict, manifest_path: Path) -> None:
         "out_dir": payload["out_dir"],
         "manifest": manifest_path.as_posix(),
         "write_crops": payload["write_crops"],
+        "refine_name_cell": payload.get("refine_name_cell", False),
+        "write_debug": payload.get("write_debug", False),
         "total": payload["total"],
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))

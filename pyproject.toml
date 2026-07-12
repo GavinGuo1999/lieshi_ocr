@@ -19,6 +19,9 @@ ocr = [
     "onnxruntime",
     "pillow",
 ]
+vision = [
+    "opencv-python-headless>=4.8",
+]
 
 [project.scripts]
 lieshi-ocr = "lieshi_ocr.cli:main"

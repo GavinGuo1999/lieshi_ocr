@@ -28,6 +28,13 @@ lieshi-ocr crop-batch --batch 20260626 --dry-run
 lieshi-ocr crop-batch --batch 20260626 --write-crops
 ```
 
+显式启用姓名单元格线检测，并可选写 debug overlay：
+
+```powershell
+python -m pip install -e ".[vision]"
+lieshi-ocr crop-batch --batch 20260626 --write-crops --refine-name-cell --write-debug
+```
+
 从裁剪 manifest 生成文本 manifest：
 
 ```powershell
