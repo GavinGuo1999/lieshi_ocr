@@ -10,7 +10,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from lieshi_ocr.ocr import FakeOcrEngine
+from lieshi_ocr.ocr import FakeOcrEngine, NoOcrEngine
 from lieshi_ocr.pipeline.extract_text import extract_text_manifest, write_text_manifest
 
 
@@ -85,6 +85,38 @@ class ExtractTextPipelineTests(unittest.TestCase):
             self.assertEqual(records["correction"].text, "MinerU 修正文段")
             self.assertEqual(records["correction"].confidence, 1.0)
 
+    def test_code_name_engine_can_run_without_touching_correction_ocr(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            crop_manifest = root / "crop_manifest.json"
+            mineru_dir = root / "mineru"
+            _write_crop_manifest(crop_manifest)
+            mineru_dir.mkdir()
+            (mineru_dir / "sample__correction.md").write_text("MinerU correction text", encoding="utf-8")
+
+            manifest = extract_text_manifest(
+                crop_manifest,
+                root / "text",
+                code_name_ocr_engine=FakeOcrEngine(
+                    {
+                        "sample__code.pdf": "QX-0001",
+                        "sample__name.pdf": "Test Name",
+                    }
+                ),
+                correction_ocr_engine=NoOcrEngine(),
+                mineru_text_dir=mineru_dir,
+                use_mineru_correction=True,
+            )
+            records = {record.region: record for record in manifest.records}
+
+            self.assertEqual(records["code"].engine, "fake")
+            self.assertEqual(records["code"].text, "QX-0001")
+            self.assertEqual(records["name"].engine, "fake")
+            self.assertEqual(records["name"].text, "Test Name")
+            self.assertEqual(records["correction"].engine, "mineru_text")
+            self.assertEqual(records["correction"].text, "MinerU correction text")
+            self.assertEqual(records["correction"].warnings, [])
+
     def test_write_text_manifest_to_explicit_temp_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -99,6 +131,44 @@ class ExtractTextPipelineTests(unittest.TestCase):
             self.assertTrue(out_path.exists())
             self.assertEqual(payload["total"], 3)
             self.assertEqual(payload["records"][0]["warnings"], ["fake_ocr_text_missing"])
+
+    def test_cli_extract_text_reports_mixed_engine_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / ".git").mkdir()
+            crop_manifest = root / "data" / "work" / "20260626" / "crop" / "crop_manifest.json"
+            text_manifest = root / "data" / "work" / "20260626" / "text" / "text_manifest.json"
+            mineru_dir = root / "mineru"
+            _write_crop_manifest(crop_manifest)
+            mineru_dir.mkdir()
+            (mineru_dir / "sample__correction.md").write_text("MinerU correction text", encoding="utf-8")
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lieshi_ocr.cli",
+                    "extract-text",
+                    "--batch",
+                    "20260626",
+                    "--root",
+                    str(root),
+                    "--mineru-text-dir",
+                    str(mineru_dir),
+                ],
+                cwd=Path(__file__).resolve().parents[1],
+                env={**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parents[1] / "src")},
+                text=True,
+                capture_output=True,
+                check=True,
+            )
+            payload = json.loads(text_manifest.read_text(encoding="utf-8"))
+            records = {record["region"]: record for record in payload["records"]}
+
+            self.assertIn('"code_name_engine": "none"', result.stdout)
+            self.assertIn('"correction_engine": "mineru"', result.stdout)
+            self.assertEqual(records["code"]["engine"], "none")
+            self.assertEqual(records["correction"]["engine"], "mineru_text")
 
     def test_cli_extract_text_defaults_to_no_real_ocr(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

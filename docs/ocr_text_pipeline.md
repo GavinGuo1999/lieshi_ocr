@@ -51,3 +51,21 @@ python -m lieshi_ocr.cli extract-text --batch 20260626 --crop-manifest data/work
 ```powershell
 python -m lieshi_ocr.cli extract-text --batch 20260626 --mineru-text-dir data/work/20260626/mineru_text
 ```
+
+For smoke tests where correction text comes from MinerU but code/name need OCR,
+use the mixed-region mode:
+
+```powershell
+python -m pip install -e ".[ocr]"
+```
+
+```powershell
+python -m lieshi_ocr.cli extract-text --batch 20260626 --crop-manifest data/work/20260626/crop/crop_manifest.json --mineru-text-dir data/scan/20260626/mineru_text --code-name-engine rapidocr --correction-engine mineru
+```
+
+- `--code-name-engine rapidocr` only applies to `code` and `name` regions.
+- `--correction-engine mineru` keeps the long correction body on MinerU text.
+- `--engine` remains as the legacy/default all-region engine and defaults to
+  `none`.
+- Tests use fake OCR engines; the real RapidOCR runtime is optional and only
+  loaded when explicitly selected.

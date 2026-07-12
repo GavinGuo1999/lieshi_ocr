@@ -42,6 +42,12 @@ python -m pip install -e .
 lieshi-ocr --help
 ```
 
+需要使用 RapidOCR 识别编号和姓名时，安装可选 OCR 依赖：
+
+```powershell
+python -m pip install -e ".[ocr]"
+```
+
 完整命令链见 `docs/cli.md`。
 
 ## 本地检查

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .config import DEFAULT_BATCH
 from .crop.batch import build_crop_manifest, default_crop_out_dir, discover_batch_pdfs, write_crop_manifest
-from .ocr.rapidocr_engine import create_ocr_engine
+from .ocr.rapidocr_engine import TextOcrEngine, create_ocr_engine
 from .paths import ProjectPaths
 from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
 from .pipeline.excel_update import run_excel_apply, run_excel_dry_run
@@ -43,6 +43,18 @@ def main(argv: list[str] | None = None) -> int:
     text.add_argument("--out-dir", default="", help="Defaults to data/work/{batch}/text.")
     text.add_argument("--manifest", default="", help="Defaults to <out-dir>/text_manifest.json.")
     text.add_argument("--engine", default="none", choices=["none", "rapidocr"], help="Real OCR runs only when explicitly set.")
+    text.add_argument(
+        "--code-name-engine",
+        default="",
+        metavar="{none,rapidocr}",
+        help="Engine for code/name regions. Defaults to --engine.",
+    )
+    text.add_argument(
+        "--correction-engine",
+        default="",
+        metavar="{none,mineru,rapidocr}",
+        help="Engine for correction region. Defaults to mineru when --mineru-text-dir is set, otherwise --engine.",
+    )
     text.add_argument("--mineru-text-dir", default="", help="Optional explicit MinerU markdown/text directory.")
     text.add_argument("--root", default="", help="Project root override.")
 
@@ -167,12 +179,16 @@ def _extract_text(args: argparse.Namespace) -> int:
     crop_manifest = Path(args.crop_manifest) if args.crop_manifest else batch_paths.work / "crop" / "crop_manifest.json"
     out_dir = _text_out_dir(paths, args.batch, args.out_dir)
     manifest_path = _text_manifest_path(out_dir, args.manifest)
-    engine = create_ocr_engine(args.engine)
+    engine_names = _text_engine_names(args)
+    engines = _text_engines(engine_names)
     text_manifest = extract_text_manifest(
         crop_manifest_path=crop_manifest,
         out_dir=out_dir,
-        ocr_engine=engine,
+        ocr_engine=engines["default"],
+        code_name_ocr_engine=engines["code_name"],
+        correction_ocr_engine=engines["correction"],
         mineru_text_dir=args.mineru_text_dir or None,
+        use_mineru_correction=engine_names["correction"] == "mineru",
     )
     write_text_manifest(text_manifest, manifest_path)
     print(
@@ -183,6 +199,8 @@ def _extract_text(args: argparse.Namespace) -> int:
                 "out_dir": out_dir.as_posix(),
                 "manifest": manifest_path.as_posix(),
                 "engine": args.engine,
+                "code_name_engine": engine_names["code_name"],
+                "correction_engine": engine_names["correction"],
                 "total": len(text_manifest.records),
             },
             ensure_ascii=False,
@@ -190,6 +208,40 @@ def _extract_text(args: argparse.Namespace) -> int:
         )
     )
     return 0
+
+
+def _text_engine_names(args: argparse.Namespace) -> dict[str, str]:
+    code_name = args.code_name_engine or args.engine
+    if args.correction_engine:
+        correction = args.correction_engine
+    elif args.mineru_text_dir:
+        correction = "mineru"
+    else:
+        correction = args.engine
+    if code_name not in {"none", "rapidocr"}:
+        raise ValueError("--code-name-engine must be one of: none, rapidocr")
+    if correction not in {"none", "mineru", "rapidocr"}:
+        raise ValueError("--correction-engine must be one of: none, mineru, rapidocr")
+    if correction == "mineru" and not args.mineru_text_dir:
+        raise ValueError("--correction-engine mineru requires --mineru-text-dir")
+    return {"default": args.engine, "code_name": code_name, "correction": correction}
+
+
+def _text_engines(names: dict[str, str]) -> dict[str, TextOcrEngine]:
+    created: dict[str, TextOcrEngine] = {}
+
+    def engine_for(name: str) -> TextOcrEngine:
+        if name == "mineru":
+            name = "none"
+        if name not in created:
+            created[name] = create_ocr_engine(name)
+        return created[name]
+
+    return {
+        "default": engine_for(names["default"]),
+        "code_name": engine_for(names["code_name"]),
+        "correction": engine_for(names["correction"]),
+    }
 
 
 def _build_review(args: argparse.Namespace) -> int:

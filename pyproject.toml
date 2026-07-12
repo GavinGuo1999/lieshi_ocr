@@ -13,6 +13,13 @@ dependencies = [
     "pymupdf>=1.24",
 ]
 
+[project.optional-dependencies]
+ocr = [
+    "rapidocr>=3.9",
+    "onnxruntime",
+    "pillow",
+]
+
 [project.scripts]
 lieshi-ocr = "lieshi_ocr.cli:main"
 
