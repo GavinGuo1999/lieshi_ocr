@@ -57,3 +57,27 @@ data/work/20260626/audit/ocr_audit_report.html
 4. 最后查看 correction/MinerU 原文、parser 候选和 warnings。
 
 本报告只帮助定位问题。任何 Excel 修改仍必须经过 `excel-dry-run`、人工批准和 `excel-apply`。
+
+## 本地浏览器视觉检查
+
+浏览器不应放宽 `file://` 安全策略。需要检查 HTML 布局时，在项目根目录临时启动仅监听 loopback 的 HTTP 服务：
+
+```powershell
+python -m http.server 8765 --bind 127.0.0.1 --directory D:\Projects\lieshi_ocr
+```
+
+然后打开：
+
+```text
+http://127.0.0.1:8765/data/work/20260626/audit/ocr_audit_report.html
+```
+
+视觉检查至少确认：
+
+- HTML 记录数与 JSON `record_count` 一致。
+- code/name/correction crop 和 MinerU 原文链接可访问。
+- 页面没有横向溢出，中文、长正文和 warnings 不重叠。
+- OCR 姓名、安全清洗姓名和 Excel 预期姓名对比清楚。
+- 浏览器控制台没有 JavaScript error。
+
+服务必须绑定 `127.0.0.1`，禁止改为 `0.0.0.0`。检查完成后按 `Ctrl+C` 停止服务。截图和检查结果属于本地敏感产物，只能写入已忽略的 `data/work/{batch}/audit/`。
