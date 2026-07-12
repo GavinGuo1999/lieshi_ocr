@@ -32,6 +32,7 @@ def _write_text_manifest(path: Path, correction_text: str, code_text: str = "QX-
                 "text": code_text,
                 "confidence": 1.0,
                 "warnings": [],
+                "text_source": "",
             },
             {
                 "batch": "20260626",
@@ -43,6 +44,7 @@ def _write_text_manifest(path: Path, correction_text: str, code_text: str = "QX-
                 "text": name_text,
                 "confidence": 1.0,
                 "warnings": [],
+                "text_source": "",
             },
             {
                 "batch": "20260626",
@@ -54,6 +56,7 @@ def _write_text_manifest(path: Path, correction_text: str, code_text: str = "QX-
                 "text": correction_text,
                 "confidence": 1.0,
                 "warnings": [],
+                "text_source": "data/work/20260626/mineru/sample.md",
             },
         ],
     }
@@ -159,6 +162,7 @@ class ParseReviewManifestTests(unittest.TestCase):
             self.assertEqual(record.fields["姓名"], "张三")
             self.assertEqual(record.fields["参加革命/工作时间"], "1938年")
             self.assertEqual(record.fields["牺牲地点"], "太行山")
+            self.assertEqual(record.regions["correction"].text_source, "data/work/20260626/mineru/sample.md")
             self.assertIn("code_conflict", record.warnings)
             self.assertIn("name_conflict", record.warnings)
 

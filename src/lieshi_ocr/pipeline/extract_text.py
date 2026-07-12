@@ -24,6 +24,7 @@ class TextRecord:
     text: str
     confidence: float
     warnings: list[str] = field(default_factory=list)
+    text_source: str = ""
 
     def to_json(self) -> JsonDict:
         return {
@@ -36,6 +37,7 @@ class TextRecord:
             "text": self.text,
             "confidence": self.confidence,
             "warnings": self.warnings,
+            "text_source": self.text_source,
         }
 
 
@@ -111,6 +113,7 @@ def extract_text_manifest(
                     text=result.text,
                     confidence=result.confidence,
                     warnings=region_warnings + list(result.warnings),
+                    text_source=result.source_path,
                 )
             )
 
@@ -139,7 +142,13 @@ def _extract_region_text(
     if use_mineru_correction and mineru_text_dir is not None and region == "correction":
         mineru = read_mineru_text(mineru_text_dir, source_stem=source_stem, region=region)
         if mineru.text:
-            return OcrTextResult(text=mineru.text, confidence=1.0, engine="mineru_text", warnings=mineru.warnings)
+            return OcrTextResult(
+                text=mineru.text,
+                confidence=1.0,
+                engine="mineru_text",
+                warnings=mineru.warnings,
+                source_path=mineru.path,
+            )
         if isinstance(engine, NoOcrEngine):
             return OcrTextResult(text="", confidence=0.0, engine="mineru_text", warnings=mineru.warnings)
     if not crop_pdf:

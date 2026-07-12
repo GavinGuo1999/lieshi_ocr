@@ -17,6 +17,7 @@ class OcrTextResult:
     confidence: float
     engine: str
     warnings: tuple[str, ...] = ()
+    source_path: str = ""
 
 
 class TextOcrEngine(Protocol):

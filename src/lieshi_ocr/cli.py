@@ -10,6 +10,7 @@ from .config import DEFAULT_BATCH
 from .crop.batch import build_crop_manifest, default_crop_out_dir, discover_batch_pdfs, write_crop_manifest
 from .ocr.rapidocr_engine import TextOcrEngine, create_ocr_engine
 from .paths import ProjectPaths
+from .pipeline.audit_ocr import build_ocr_audit, write_ocr_audit_outputs
 from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
 from .pipeline.excel_update import run_excel_apply, run_excel_dry_run
 from .pipeline.extract_text import extract_text_manifest, write_text_manifest
@@ -66,6 +67,12 @@ def main(argv: list[str] | None = None) -> int:
     review.add_argument("--report", default="", help="Defaults to <out-dir>/review_report.md.")
     review.add_argument("--root", default="", help="Project root override.")
 
+    audit = subparsers.add_parser("audit-ocr", help="Build read-only OCR audit JSON and HTML reports.")
+    audit.add_argument("--text-manifest", required=True, help="text_manifest.json path.")
+    audit.add_argument("--records", required=True, help="correction_records.json path.")
+    audit.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
+    audit.add_argument("--out-dir", required=True, help="Directory for ocr_audit_report.json/html.")
+
     dry_run = subparsers.add_parser("excel-dry-run", help="Build Excel dry-run JSON and Markdown reports.")
     dry_run.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
     dry_run.add_argument("--records", required=True, help="correction_records.json path.")
@@ -87,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
         return _extract_text(args)
     if args.command == "build-review":
         return _build_review(args)
+    if args.command == "audit-ocr":
+        return _audit_ocr(args)
     if args.command == "excel-dry-run":
         return _excel_dry_run(args)
     if args.command == "excel-apply":
@@ -273,6 +282,28 @@ def _build_review(args: argparse.Namespace) -> int:
 def _excel_dry_run(args: argparse.Namespace) -> int:
     summary = run_excel_dry_run(base_xlsx=args.base_xlsx, records_path=args.records, out_dir=args.out_dir)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _audit_ocr(args: argparse.Namespace) -> int:
+    report = build_ocr_audit(
+        text_manifest_path=args.text_manifest,
+        records_path=args.records,
+        base_xlsx=args.base_xlsx,
+    )
+    json_path, html_path = write_ocr_audit_outputs(report, args.out_dir)
+    print(
+        json.dumps(
+            {
+                "out_dir": Path(args.out_dir).as_posix(),
+                "json": json_path.as_posix(),
+                "html": html_path.as_posix(),
+                "summary": report["summary"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     return 0
 
 

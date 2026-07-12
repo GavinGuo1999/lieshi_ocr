@@ -40,6 +40,12 @@ lieshi-ocr extract-text --batch 20260626 --crop-manifest data/work/20260626/crop
 lieshi-ocr build-review --batch 20260626 --text-manifest data/work/20260626/text/text_manifest.json
 ```
 
+生成编号/姓名 OCR 与可信 v4 的只读 HTML/JSON 审计报告：
+
+```powershell
+lieshi-ocr audit-ocr --text-manifest data/work/20260626/text/text_manifest.json --records data/work/20260626/review/correction_records.json --base-xlsx "data/private/baselines/英名录25版-祁县-二审_v4.xlsx" --out-dir data/work/20260626/audit
+```
+
 基于 v4 Excel 生成 dry-run 报告：
 
 ```powershell
@@ -58,6 +64,7 @@ lieshi-ocr excel-apply --base-xlsx data/private/baselines/qixian_v4.xlsx --dry-r
 lieshi-ocr crop-batch --help
 lieshi-ocr extract-text --help
 lieshi-ocr build-review --help
+lieshi-ocr audit-ocr --help
 lieshi-ocr excel-dry-run --help
 lieshi-ocr excel-apply --help
 ```
