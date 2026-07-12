@@ -55,6 +55,12 @@ python -m pip install -e .
 lieshi-ocr --help
 ```
 
+混合模式需要 RapidOCR 可选依赖。运行 code/name OCR 前安装：
+
+```powershell
+python -m pip install -e ".[ocr]"
+```
+
 ## 小样本全链路
 
 先限制 3 个 PDF，避免第一次 smoke test 产物过多：
