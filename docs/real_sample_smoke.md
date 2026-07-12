@@ -86,6 +86,14 @@ This mixed route does not OCR the long correction body with RapidOCR. If the
 optional RapidOCR runtime is not installed, the command fails clearly while the
 default `--engine none` and MinerU-only routes remain available.
 
+混合提取和 `build-review` 完成后，先生成只读 OCR 审计报告，检查编号、姓名 crop 与 v4 的精确匹配情况：
+
+```powershell
+lieshi-ocr audit-ocr --text-manifest data/work/20260626/text/text_manifest.json --records data/work/20260626/review/correction_records.json --base-xlsx "data/private/baselines/英名录25版-祁县-二审_v4.xlsx" --out-dir data/work/20260626/audit
+```
+
+打开 `data/work/20260626/audit/ocr_audit_report.html`，只人工核对 3 至 10 条。报告和 JSON 含真实数据，不得提交或公开。
+
 如果已有 MinerU 文本目录不在 `data/scan/20260626/mineru_text`，把 `--mineru-text-dir` 指向实际 md/txt 目录。只有 MinerU 文本仍为空时，再考虑显式 OCR。
 
 历史 MinerU 输出可以是嵌套结构，例如：

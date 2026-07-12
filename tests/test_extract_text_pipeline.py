@@ -84,6 +84,7 @@ class ExtractTextPipelineTests(unittest.TestCase):
             self.assertEqual(records["correction"].engine, "mineru_text")
             self.assertEqual(records["correction"].text, "MinerU 修正文段")
             self.assertEqual(records["correction"].confidence, 1.0)
+            self.assertEqual(records["correction"].text_source, (mineru_dir / "sample__correction.md").as_posix())
 
     def test_code_name_engine_can_run_without_touching_correction_ocr(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -22,6 +22,7 @@ class RegionText:
     confidence: float
     crop_pdf: str
     warnings: list[str] = field(default_factory=list)
+    text_source: str = ""
 
     def to_json(self) -> JsonDict:
         return {
@@ -31,6 +32,7 @@ class RegionText:
             "confidence": self.confidence,
             "crop_pdf": self.crop_pdf,
             "warnings": self.warnings,
+            "text_source": self.text_source,
         }
 
 
@@ -173,6 +175,7 @@ def _build_record(batch: str, source_key: str, source_records: list[JsonDict]) -
             confidence=float(item.get("confidence", 0.0) or 0.0),
             crop_pdf=str(item.get("crop_pdf", "")),
             warnings=region_warnings,
+            text_source=str(item.get("text_source", "")),
         )
 
     correction_text = regions.get("correction").text if "correction" in regions else ""
