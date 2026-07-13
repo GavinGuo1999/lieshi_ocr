@@ -292,6 +292,7 @@ def _build_record(
         "links": {
             "source_pdf": _text(record.get("source_pdf")),
             "mineru_text_source": _text(correction_region.get("text_source")),
+            "correction_crop": _text(correction_region.get("crop_pdf")),
         },
         "warnings": warnings,
         "manual_conclusion": "",

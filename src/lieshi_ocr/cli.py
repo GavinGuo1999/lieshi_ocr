@@ -15,6 +15,11 @@ from .pipeline.audit_story import build_story_candidate_audit, write_story_candi
 from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
 from .pipeline.excel_update import run_excel_apply, run_excel_dry_run
 from .pipeline.extract_text import extract_text_manifest, write_text_manifest
+from .pipeline.story_review_xlsx import (
+    collect_story_review_decisions,
+    generate_story_review_workbook,
+    write_story_review_decisions,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -90,6 +95,16 @@ def main(argv: list[str] | None = None) -> int:
     story_audit.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
     story_audit.add_argument("--out-dir", required=True, help="Directory for story candidate audit outputs.")
 
+    story_xlsx = subparsers.add_parser("audit-story-xlsx", help="Build a protected Excel workbook for story review.")
+    story_xlsx.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
+    story_xlsx.add_argument("--records", required=True, help="correction_records.json path.")
+    story_xlsx.add_argument("--dry-run", required=True, help="dry_run_report.json path.")
+    story_xlsx.add_argument("--out-xlsx", required=True, help="Output review workbook path.")
+
+    collect_story = subparsers.add_parser("collect-story-review", help="Collect validated decisions from a review workbook.")
+    collect_story.add_argument("--review-xlsx", required=True, help="Completed story review workbook path.")
+    collect_story.add_argument("--out-json", required=True, help="Output story_review_decisions.json path.")
+
     dry_run = subparsers.add_parser("excel-dry-run", help="Build Excel dry-run JSON and Markdown reports.")
     dry_run.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
     dry_run.add_argument("--records", required=True, help="correction_records.json path.")
@@ -115,6 +130,10 @@ def main(argv: list[str] | None = None) -> int:
         return _audit_ocr(args)
     if args.command == "audit-story":
         return _audit_story(args)
+    if args.command == "audit-story-xlsx":
+        return _audit_story_xlsx(args)
+    if args.command == "collect-story-review":
+        return _collect_story_review(args)
     if args.command == "excel-dry-run":
         return _excel_dry_run(args)
     if args.command == "excel-apply":
@@ -343,6 +362,34 @@ def _audit_story(args: argparse.Namespace) -> int:
                 "out_dir": Path(args.out_dir).as_posix(),
                 "json": json_path.as_posix(),
                 "html": html_path.as_posix(),
+                "summary": report["summary"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _audit_story_xlsx(args: argparse.Namespace) -> int:
+    summary = generate_story_review_workbook(
+        base_xlsx=args.base_xlsx,
+        records_path=args.records,
+        dry_run_path=args.dry_run,
+        out_xlsx=args.out_xlsx,
+    )
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _collect_story_review(args: argparse.Namespace) -> int:
+    report = collect_story_review_decisions(args.review_xlsx)
+    output = write_story_review_decisions(report, args.out_json)
+    print(
+        json.dumps(
+            {
+                "review_xlsx": Path(args.review_xlsx).as_posix(),
+                "out_json": output.as_posix(),
                 "summary": report["summary"],
             },
             ensure_ascii=False,

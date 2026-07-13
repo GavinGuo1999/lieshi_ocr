@@ -65,6 +65,18 @@ lieshi-ocr excel-dry-run --base-xlsx data/private/baselines/qixian_v4.xlsx --rec
 lieshi-ocr audit-story --records data/work/20260626/review/correction_records.json --dry-run data/work/20260626/excel/dry_run_report.json --base-xlsx data/private/baselines/qixian_v4.xlsx --out-dir data/work/20260626/story_audit
 ```
 
+生成适合日常人工审核的 Excel 工作簿：
+
+```powershell
+lieshi-ocr audit-story-xlsx --base-xlsx data/private/baselines/qixian_v4.xlsx --records data/work/20260626/review/correction_records.json --dry-run data/work/20260626/excel/dry_run_report.json --out-xlsx data/work/20260626/story_audit/事迹候选人工审核.xlsx
+```
+
+把 Excel 中的审核结论收集为只读决定 JSON：
+
+```powershell
+lieshi-ocr collect-story-review --review-xlsx data/work/20260626/story_audit/事迹候选人工审核.xlsx --out-json data/work/20260626/story_audit/story_review_decisions.json
+```
+
 只应用人工批准的 change，输出候选 Excel：
 
 ```powershell
@@ -79,6 +91,8 @@ lieshi-ocr extract-text --help
 lieshi-ocr build-review --help
 lieshi-ocr audit-ocr --help
 lieshi-ocr audit-story --help
+lieshi-ocr audit-story-xlsx --help
+lieshi-ocr collect-story-review --help
 lieshi-ocr excel-dry-run --help
 lieshi-ocr excel-apply --help
 ```

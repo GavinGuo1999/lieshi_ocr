@@ -2,6 +2,8 @@
 
 `audit-story` 生成只读的事迹候选 JSON/HTML 报告，帮助人工归纳 K 列简写规则。本工具不修改 Excel、不自动缩短候选，也不决定 T 列的长期历史存储方案。
 
+日常逐条审核优先使用 `audit-story-xlsx` 生成的 Excel 工作簿。HTML 保留为开发诊断工具，不是人工审稿的必需步骤。
+
 ## 安全边界
 
 - 当前可信 Excel 基线仍是 `英名录25版-祁县-二审_v4.xlsx`。
@@ -39,6 +41,58 @@ lieshi-ocr audit-story `
 data/work/20260626/story_audit/story_candidate_audit.json
 data/work/20260626/story_audit/story_candidate_audit.html
 ```
+
+## Excel 人工审核
+
+生成审核工作簿：
+
+```powershell
+lieshi-ocr audit-story-xlsx `
+  --base-xlsx "data/private/baselines/英名录25版-祁县-二审_v4.xlsx" `
+  --records "data/work/20260626/review/correction_records.json" `
+  --dry-run "data/work/20260626/excel/dry_run_report.json" `
+  --out-xlsx "data/work/20260626/story_audit/事迹候选人工审核.xlsx"
+```
+
+工作簿包含：
+
+- `人工审核`：当前 K/T、系统候选、日期、地点、原因、warnings 和审核输入列。
+- `原始正文`：完整 MinerU 正文、来源路径和 warnings。
+- `使用说明`：审核步骤和敏感数据边界。
+- `_审核元数据`：veryHidden 校验表，用于发现编号、姓名或系统候选被误改。
+
+只编辑 `人工审核` 的三列：
+
+- `审核结论`
+- `建议最终K`
+- `人工备注`
+
+审核结论下拉选项：
+
+- `通过系统候选`
+- `需要改写`
+- `信息不足`
+- `原文疑似错误`
+- `暂不处理`
+
+工作表保护只用于防误操作，不是安全加密。审核工作簿包含真实个人信息，必须保存在被 Git 忽略的 `data/` 目录。
+
+收集审核结果：
+
+```powershell
+lieshi-ocr collect-story-review `
+  --review-xlsx "data/work/20260626/story_audit/事迹候选人工审核.xlsx" `
+  --out-json "data/work/20260626/story_audit/story_review_decisions.json"
+```
+
+收集规则：
+
+- `通过系统候选`：最终 K 使用未被修改的系统候选 K。
+- `需要改写`：`建议最终K` 必填。
+- `信息不足`、`原文疑似错误`、`暂不处理`：记录决定，但不生成可审批 K。
+- 编号、姓名或系统候选与隐藏元数据不一致时拒绝收集。
+- 内容审核通过不会解除 `story_backup_conflict`；决定 JSON 会保留候选状态，并标记 `requires_backup_resolution`。
+- 只输出审核决定 JSON，不修改 v4/v5，不执行 `excel-apply`。
 
 ## 报告内容
 

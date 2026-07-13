@@ -56,6 +56,7 @@ def _write_records(path: Path, raw_text: str) -> None:
                         "regions": {
                             "correction": {
                                 "text_source": "data/work/20260626/mineru/sample.md",
+                                "crop_pdf": "data/work/20260626/crop/sample__correction.pdf",
                             }
                         },
                         "warnings": ["multiple_date_candidates", "needs_human_review"],
@@ -130,6 +131,7 @@ class StoryCandidateAuditTests(unittest.TestCase):
             self.assertEqual(item["candidate"]["block_reason"], "story_backup_conflict")
             self.assertEqual(item["date_candidates"], ["1937年8月", "1942年3月15日"])
             self.assertEqual(item["parsed_candidates"]["牺牲地点"], "某地")
+            self.assertEqual(item["links"]["correction_crop"], "data/work/20260626/crop/sample__correction.pdf")
             self.assertIn("story_candidate_long", item["warnings"])
             self.assertEqual(workbook.read_bytes(), workbook_before)
 
