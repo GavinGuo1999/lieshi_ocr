@@ -166,6 +166,14 @@ class StoryCandidateAuditTests(unittest.TestCase):
         self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;", html)
         self.assertIn("data-audit-key=\"QX-0001\"", html)
         self.assertIn("localStorage", html)
+        self.assertIn('id="review-filled"', html)
+        self.assertIn('id="export-reviews"', html)
+        self.assertIn('id="import-reviews"', html)
+        self.assertIn('id="clear-reviews"', html)
+        self.assertIn("lieshi_ocr_story_review_opinions", html)
+        self.assertIn("story_review_opinions.json", html)
+        self.assertIn("confirm('确认清空本报告的全部人工意见？", html)
+        self.assertIn("JSON.stringify(payload, null, 2) + '\\n'", html)
 
     def test_writes_json_html_and_cli_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
