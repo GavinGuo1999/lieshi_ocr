@@ -59,6 +59,12 @@ lieshi-ocr audit-ocr --text-manifest data/work/20260626/text/text_manifest.json 
 lieshi-ocr excel-dry-run --base-xlsx data/private/baselines/qixian_v4.xlsx --records data/work/20260626/review/correction_records.json --out-dir data/work/20260626/excel
 ```
 
+并排审查当前 K/T、dry-run 候选 K、MinerU 原文和日期候选：
+
+```powershell
+lieshi-ocr audit-story --records data/work/20260626/review/correction_records.json --dry-run data/work/20260626/excel/dry_run_report.json --base-xlsx data/private/baselines/qixian_v4.xlsx --out-dir data/work/20260626/story_audit
+```
+
 只应用人工批准的 change，输出候选 Excel：
 
 ```powershell
@@ -72,6 +78,7 @@ lieshi-ocr crop-batch --help
 lieshi-ocr extract-text --help
 lieshi-ocr build-review --help
 lieshi-ocr audit-ocr --help
+lieshi-ocr audit-story --help
 lieshi-ocr excel-dry-run --help
 lieshi-ocr excel-apply --help
 ```

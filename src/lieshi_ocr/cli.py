@@ -11,6 +11,7 @@ from .crop.batch import build_crop_manifest, default_crop_out_dir, discover_batc
 from .ocr.rapidocr_engine import TextOcrEngine, create_ocr_engine
 from .paths import ProjectPaths
 from .pipeline.audit_ocr import build_ocr_audit, write_ocr_audit_outputs
+from .pipeline.audit_story import build_story_candidate_audit, write_story_candidate_audit_outputs
 from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
 from .pipeline.excel_update import run_excel_apply, run_excel_dry_run
 from .pipeline.extract_text import extract_text_manifest, write_text_manifest
@@ -83,6 +84,12 @@ def main(argv: list[str] | None = None) -> int:
     audit.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
     audit.add_argument("--out-dir", required=True, help="Directory for ocr_audit_report.json/html.")
 
+    story_audit = subparsers.add_parser("audit-story", help="Build read-only story candidate audit JSON and HTML.")
+    story_audit.add_argument("--records", required=True, help="correction_records.json path.")
+    story_audit.add_argument("--dry-run", required=True, help="dry_run_report.json path.")
+    story_audit.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
+    story_audit.add_argument("--out-dir", required=True, help="Directory for story candidate audit outputs.")
+
     dry_run = subparsers.add_parser("excel-dry-run", help="Build Excel dry-run JSON and Markdown reports.")
     dry_run.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
     dry_run.add_argument("--records", required=True, help="correction_records.json path.")
@@ -106,6 +113,8 @@ def main(argv: list[str] | None = None) -> int:
         return _build_review(args)
     if args.command == "audit-ocr":
         return _audit_ocr(args)
+    if args.command == "audit-story":
+        return _audit_story(args)
     if args.command == "excel-dry-run":
         return _excel_dry_run(args)
     if args.command == "excel-apply":
@@ -306,6 +315,28 @@ def _audit_ocr(args: argparse.Namespace) -> int:
         base_xlsx=args.base_xlsx,
     )
     json_path, html_path = write_ocr_audit_outputs(report, args.out_dir)
+    print(
+        json.dumps(
+            {
+                "out_dir": Path(args.out_dir).as_posix(),
+                "json": json_path.as_posix(),
+                "html": html_path.as_posix(),
+                "summary": report["summary"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _audit_story(args: argparse.Namespace) -> int:
+    report = build_story_candidate_audit(
+        records_path=args.records,
+        dry_run_path=args.dry_run,
+        base_xlsx=args.base_xlsx,
+    )
+    json_path, html_path = write_story_candidate_audit_outputs(report, args.out_dir)
     print(
         json.dumps(
             {
