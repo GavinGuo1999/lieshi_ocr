@@ -45,24 +45,88 @@ def apply_approved_changes(
     sheet = workbook.active
     applied: list[JsonDict] = []
     skipped: list[JsonDict] = []
+    applied_ids: set[str] = set()
+    failed_ids: set[str] = set()
 
     try:
-        for change_id in sorted(approved_ids):
-            change = changes_by_id.get(change_id)
-            if change is None:
-                skipped.append({"id": change_id, "skip_reason": "approved_change_not_in_dry_run"})
-                continue
-            row = int(change["row"])
-            column = int(change["column"])
-            cell = sheet.cell(row, column)
-            current = cell_text(cell.value)
-            expected_old = cell_text(change.get("old"))
-            if current != expected_old:
-                skipped.append({**change, "current": current, "skip_reason": "current_value_differs_from_dry_run_old"})
-                continue
-            cell.value = change.get("new", "")
-            _set_red_font(cell)
-            applied.append(change)
+        remaining = set(approved_ids)
+        while remaining:
+            progress = False
+            for change_id in sorted(remaining):
+                change = changes_by_id.get(change_id)
+                if change is None:
+                    skipped.append({"id": change_id, "skip_reason": "approved_change_not_in_dry_run"})
+                    failed_ids.add(change_id)
+                    remaining.remove(change_id)
+                    progress = True
+                    break
+
+                requires = _string_list(change.get("requires", []))
+                not_approved = [required for required in requires if required not in approved_ids]
+                if not_approved:
+                    skipped.append(
+                        {
+                            **change,
+                            "required": not_approved,
+                            "skip_reason": "required_change_not_approved",
+                        }
+                    )
+                    failed_ids.add(change_id)
+                    remaining.remove(change_id)
+                    progress = True
+                    break
+
+                unavailable = [
+                    required
+                    for required in requires
+                    if required in failed_ids or required not in changes_by_id
+                ]
+                if unavailable:
+                    skipped.append(
+                        {
+                            **change,
+                            "required": unavailable,
+                            "skip_reason": "required_change_not_applied",
+                        }
+                    )
+                    failed_ids.add(change_id)
+                    remaining.remove(change_id)
+                    progress = True
+                    break
+                if any(required not in applied_ids for required in requires):
+                    continue
+
+                row = int(change["row"])
+                column = int(change["column"])
+                cell = sheet.cell(row, column)
+                current = cell_text(cell.value)
+                expected_old = cell_text(change.get("old"))
+                if current != expected_old:
+                    skipped.append(
+                        {
+                            **change,
+                            "current": current,
+                            "skip_reason": "current_value_differs_from_dry_run_old",
+                        }
+                    )
+                    failed_ids.add(change_id)
+                    remaining.remove(change_id)
+                    progress = True
+                    break
+                cell.value = change.get("new", "")
+                _set_red_font(cell)
+                applied.append(change)
+                applied_ids.add(change_id)
+                remaining.remove(change_id)
+                progress = True
+                break
+
+            if not progress:
+                for change_id in sorted(remaining):
+                    change = changes_by_id.get(change_id, {"id": change_id})
+                    skipped.append({**change, "skip_reason": "required_change_not_applied"})
+                    failed_ids.add(change_id)
+                remaining.clear()
         workbook.save(output)
     finally:
         workbook.close()
@@ -100,6 +164,12 @@ def _load_approved_ids(path: str | Path) -> set[str]:
             if change_id:
                 approved.add(str(change_id))
     return approved
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if isinstance(item, str)]
 
 
 def _set_red_font(cell: Any) -> None:

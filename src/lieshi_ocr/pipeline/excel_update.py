@@ -22,6 +22,7 @@ def run_excel_dry_run(base_xlsx: str | Path, records_path: str | Path, out_dir: 
         "dry_run_json": json_path.as_posix(),
         "dry_run_markdown": markdown_path.as_posix(),
         "change_count": len(report.proposed_changes),
+        "blocked_count": len(report.blocked_changes),
         "record_count": len(report.record_results),
     }
 
