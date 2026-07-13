@@ -14,10 +14,18 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from lieshi_ocr.excel.apply_changes import apply_approved_changes
 from lieshi_ocr.excel.dry_run import build_excel_dry_run, write_dry_run_outputs
-from lieshi_ocr.excel.rules import append_review_note
+from lieshi_ocr.excel.rules import (
+    BACKUP_CONFLICT,
+    BACKUP_NO_BACKUP_NEEDED,
+    BACKUP_REQUIRED,
+    BACKUP_VERIFIED,
+    STORY_REVIEW_LENGTH,
+    append_review_note,
+    classify_story_backup,
+)
 
 
-def _write_workbook(path: Path, review_note: str = "") -> None:
+def _write_workbook(path: Path, review_note: str = "", story: str = "旧事迹", backup: str = "") -> None:
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     headers = {
@@ -41,8 +49,9 @@ def _write_workbook(path: Path, review_note: str = "") -> None:
     sheet.cell(2, 8).value = "旧参加"
     sheet.cell(2, 9).value = "旧面貌"
     sheet.cell(2, 10).value = "旧单位旧职务"
-    sheet.cell(2, 11).value = "旧事迹"
+    sheet.cell(2, 11).value = story
     sheet.cell(2, 14).value = review_note
+    sheet.cell(2, 20).value = backup
     sheet.cell(3, 2).value = "QX-0002"
     sheet.cell(3, 4).value = "李四"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +105,31 @@ def _write_records(path: Path, name: str = "张三") -> None:
                 "regions": {},
                 "warnings": [],
             },
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _write_story_record(
+    path: Path,
+    story: str,
+    warnings: list[str] | None = None,
+    extra_fields: dict[str, str] | None = None,
+) -> None:
+    fields = {"编号": "QX-0001", "姓名": "张三", "事迹": story}
+    fields.update(extra_fields or {})
+    payload = {
+        "batch": "20260626",
+        "records": [
+            {
+                "source_pdf": "sample.pdf",
+                "source_stem": "sample",
+                "code": "QX-0001",
+                "name": "张三",
+                "fields": fields,
+                "warnings": list(warnings or []),
+            }
         ],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -178,6 +212,190 @@ class ExcelDryRunApplyTests(unittest.TestCase):
 
             self.assertNotIn("QX-0001:F2", ids)
             self.assertIn("name_mismatch", result.warnings)
+
+    def test_classify_story_backup_states(self) -> None:
+        self.assertEqual(classify_story_backup("", "历史值"), BACKUP_NO_BACKUP_NEEDED)
+        self.assertEqual(classify_story_backup("当前 K", ""), BACKUP_REQUIRED)
+        self.assertEqual(classify_story_backup("当前 K。", " 当前 K "), BACKUP_VERIFIED)
+        self.assertEqual(classify_story_backup("当前 K", "更早历史 K"), BACKUP_CONFLICT)
+
+    def test_story_with_empty_old_k_does_not_require_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            _write_workbook(xlsx, story="", backup="历史值")
+            _write_story_record(records, "新事迹")
+
+            report = build_excel_dry_run(xlsx, records)
+            changes = {change.id: change for change in report.proposed_changes}
+
+            self.assertIn("QX-0001:K2", changes)
+            self.assertNotIn("QX-0001:T2", changes)
+            self.assertEqual(changes["QX-0001:K2"].requires, [])
+
+    def test_empty_t_creates_backup_and_k_requires_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            _write_workbook(xlsx, story="当前旧 K", backup="")
+            _write_story_record(records, "新事迹")
+
+            report = build_excel_dry_run(xlsx, records)
+            changes = {change.id: change for change in report.proposed_changes}
+
+            self.assertEqual(changes["QX-0001:T2"].new, "当前旧 K")
+            self.assertEqual(changes["QX-0001:K2"].requires, ["QX-0001:T2"])
+
+    def test_verified_t_allows_k_without_rewriting_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            _write_workbook(xlsx, story="当前旧 K", backup="当前旧 K")
+            _write_story_record(records, "新事迹")
+
+            report = build_excel_dry_run(xlsx, records)
+            ids = [change.id for change in report.proposed_changes]
+
+            self.assertIn("QX-0001:K2", ids)
+            self.assertNotIn("QX-0001:T2", ids)
+            self.assertEqual(report.proposed_changes[0].requires, [])
+
+    def test_backup_conflict_blocks_k_and_avoids_warning_only_n(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            report_json = root / "dry_run.json"
+            report_md = root / "dry_run.md"
+            _write_workbook(xlsx, story="当前旧 K", backup="更早历史 K")
+            _write_story_record(records, "新事迹", warnings=["needs_human_review"])
+
+            report = build_excel_dry_run(xlsx, records)
+            write_dry_run_outputs(report, report_json, report_md)
+            ids = [change.id for change in report.proposed_changes]
+            blocked = report.blocked_changes[0]
+
+            self.assertNotIn("QX-0001:K2", ids)
+            self.assertNotIn("QX-0001:T2", ids)
+            self.assertNotIn("QX-0001:N2", ids)
+            self.assertEqual(blocked.id, "QX-0001:K2")
+            self.assertEqual(blocked.block_reason, "story_backup_conflict")
+            self.assertEqual(blocked.old, "当前旧 K")
+            self.assertEqual(blocked.new, "新事迹。")
+            self.assertIn("story_backup_conflict", blocked.warnings)
+            self.assertIn("新事迹。", report_md.read_text(encoding="utf-8"))
+            self.assertEqual(json.loads(report_json.read_text(encoding="utf-8"))["blocked_count"], 1)
+
+    def test_long_story_is_warned_and_not_truncated(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            long_story = "长" * (STORY_REVIEW_LENGTH + 5)
+            _write_workbook(xlsx, story="", backup="")
+            _write_story_record(records, long_story)
+
+            report = build_excel_dry_run(xlsx, records)
+            change = next(change for change in report.proposed_changes if change.column_letter == "K")
+
+            self.assertEqual(change.new, long_story + "。")
+            self.assertEqual(change.story_length, len(long_story) + 1)
+            self.assertIn("story_candidate_long", change.warnings)
+
+    def test_backup_conflict_can_still_write_real_non_column_review_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            _write_workbook(xlsx, story="当前旧 K", backup="更早历史 K")
+            _write_story_record(records, "新事迹", extra_fields={"安葬地": "某地"})
+
+            report = build_excel_dry_run(xlsx, records)
+            ids = [change.id for change in report.proposed_changes]
+
+            self.assertIn("QX-0001:N2", ids)
+            self.assertNotIn("QX-0001:K2", ids)
+
+    def test_apply_rejects_k_when_required_t_is_not_approved(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            dry_run = root / "dry_run.json"
+            approved = root / "approved.json"
+            output = root / "candidate.xlsx"
+            _write_workbook(xlsx, story="当前旧 K", backup="")
+            _write_story_record(records, "新事迹")
+            write_dry_run_outputs(build_excel_dry_run(xlsx, records), dry_run, root / "dry_run.md")
+            approved.write_text(json.dumps({"approved_changes": ["QX-0001:K2"]}), encoding="utf-8")
+
+            apply_report = apply_approved_changes(xlsx, dry_run, approved, output)
+            workbook = openpyxl.load_workbook(output)
+            try:
+                self.assertEqual(workbook.active.cell(2, 11).value, "当前旧 K")
+                self.assertEqual(workbook.active.cell(2, 20).value, None)
+            finally:
+                workbook.close()
+            self.assertEqual(apply_report["skipped"][0]["skip_reason"], "required_change_not_approved")
+
+    def test_apply_rejects_k_when_required_t_cannot_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            dry_run = root / "dry_run.json"
+            approved = root / "approved.json"
+            output = root / "candidate.xlsx"
+            _write_workbook(xlsx, story="当前旧 K", backup="")
+            _write_story_record(records, "新事迹")
+            write_dry_run_outputs(build_excel_dry_run(xlsx, records), dry_run, root / "dry_run.md")
+            workbook = openpyxl.load_workbook(xlsx)
+            workbook.active.cell(2, 20).value = "并发写入"
+            workbook.save(xlsx)
+            workbook.close()
+            approved.write_text(
+                json.dumps({"approved_changes": ["QX-0001:K2", "QX-0001:T2"]}),
+                encoding="utf-8",
+            )
+
+            apply_report = apply_approved_changes(xlsx, dry_run, approved, output)
+            workbook = openpyxl.load_workbook(output)
+            try:
+                self.assertEqual(workbook.active.cell(2, 11).value, "当前旧 K")
+                self.assertEqual(workbook.active.cell(2, 20).value, "并发写入")
+            finally:
+                workbook.close()
+            reasons = {item["id"]: item["skip_reason"] for item in apply_report["skipped"]}
+            self.assertEqual(reasons["QX-0001:T2"], "current_value_differs_from_dry_run_old")
+            self.assertEqual(reasons["QX-0001:K2"], "required_change_not_applied")
+
+    def test_apply_writes_t_before_dependent_k(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            xlsx = root / "v4.xlsx"
+            records = root / "records.json"
+            dry_run = root / "dry_run.json"
+            approved = root / "approved.json"
+            output = root / "candidate.xlsx"
+            _write_workbook(xlsx, story="当前旧 K", backup="")
+            _write_story_record(records, "新事迹")
+            write_dry_run_outputs(build_excel_dry_run(xlsx, records), dry_run, root / "dry_run.md")
+            approved.write_text(
+                json.dumps({"approved_changes": ["QX-0001:K2", "QX-0001:T2"]}),
+                encoding="utf-8",
+            )
+
+            apply_report = apply_approved_changes(xlsx, dry_run, approved, output)
+            workbook = openpyxl.load_workbook(output)
+            try:
+                self.assertEqual(workbook.active.cell(2, 20).value, "当前旧 K")
+                self.assertEqual(workbook.active.cell(2, 11).value, "新事迹。")
+            finally:
+                workbook.close()
+            self.assertEqual([item["id"] for item in apply_report["applied"]], ["QX-0001:T2", "QX-0001:K2"])
 
     def test_apply_uses_only_approved_changes_and_marks_red(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

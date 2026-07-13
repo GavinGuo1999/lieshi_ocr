@@ -16,6 +16,12 @@ COL_REVIEW = 14
 COL_STORY_BACKUP = 20
 
 RED_FONT = "FFFF0000"
+STORY_REVIEW_LENGTH = 40
+
+BACKUP_NO_BACKUP_NEEDED = "no_backup_needed"
+BACKUP_REQUIRED = "backup_required"
+BACKUP_VERIFIED = "backup_verified"
+BACKUP_CONFLICT = "backup_conflict"
 
 TARGET_FIELDS = {
     "籍贯": COL_ORIGIN,
@@ -49,6 +55,20 @@ def comparable(value: object) -> str:
     text = cell_text(value)
     text = text.replace("：", ":").replace("，", ",").replace("；", ";").replace("。", "")
     return re.sub(r"\s+", "", text)
+
+
+def classify_story_backup(old_story: object, existing_backup: object) -> str:
+    """Classify whether the current K value is safely represented in T."""
+
+    old = cell_text(old_story)
+    backup = cell_text(existing_backup)
+    if not old:
+        return BACKUP_NO_BACKUP_NEEDED
+    if not backup:
+        return BACKUP_REQUIRED
+    if comparable(old) == comparable(backup):
+        return BACKUP_VERIFIED
+    return BACKUP_CONFLICT
 
 
 def normalize_unit_role(unit_role: str, role: str = "") -> str:
