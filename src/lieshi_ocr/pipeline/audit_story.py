@@ -111,6 +111,12 @@ def render_story_candidate_audit_html(report: JsonDict, report_dir: str | Path) 
     .links {{ display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0 16px; }}
     a {{ color: #075ea8; }}
     textarea {{ width: 100%; min-height: 90px; box-sizing: border-box; resize: vertical; padding: 10px; font: inherit; border: 1px solid #aeb5bf; border-radius: 4px; }}
+    .review-tools {{ display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 20px; padding: 14px; background: white; border: 1px solid #d7dce2; border-radius: 6px; }}
+    .review-progress {{ margin-right: auto; font-size: 17px; }}
+    button, .file-button {{ display: inline-flex; align-items: center; min-height: 36px; box-sizing: border-box; padding: 7px 12px; border: 1px solid #8d98a5; border-radius: 4px; background: #fff; color: #202124; font: inherit; cursor: pointer; }}
+    button:hover, .file-button:hover {{ background: #eef2f6; }}
+    button.danger {{ border-color: #b84b4b; color: #8c2020; }}
+    #review-message {{ flex-basis: 100%; min-height: 20px; color: #4d5661; }}
     details {{ margin: 12px 0; }}
     @media (max-width: 820px) {{ .summary {{ grid-template-columns: 1fr 1fr; }} main {{ padding: 12px; }} }}
   </style>
@@ -129,14 +135,98 @@ def render_story_candidate_audit_html(report: JsonDict, report_dir: str | Path) 
       {_metric("超过 40 字", summary.get("long_story_count", 0))}
       {_metric("多日期", summary.get("multiple_date_count", 0))}
     </div>
+    <section class="review-tools" aria-label="人工意见管理">
+      <div class="review-progress">已审 <strong id="review-filled">0</strong>/<span id="review-total">{int(summary.get("record_count", 0))}</span></div>
+      <button type="button" id="export-reviews">导出意见 JSON</button>
+      <label class="file-button" for="import-reviews">导入意见 JSON</label>
+      <input type="file" id="import-reviews" accept="application/json,.json" hidden>
+      <button type="button" id="clear-reviews" class="danger">清空意见</button>
+      <span id="review-message" role="status" aria-live="polite"></span>
+    </section>
     {sections}
   </main>
   <script>
-    document.querySelectorAll('textarea[data-audit-key]').forEach((field) => {{
-      const key = 'lieshi-ocr-story-audit:' + location.pathname + ':' + field.dataset.auditKey;
-      field.value = localStorage.getItem(key) || '';
-      field.addEventListener('input', () => localStorage.setItem(key, field.value));
-    }});
+    (() => {{
+      const fields = Array.from(document.querySelectorAll('textarea[data-audit-key]'));
+      const filled = document.getElementById('review-filled');
+      const message = document.getElementById('review-message');
+      const storageKey = (field) => 'lieshi-ocr-story-audit:' + location.pathname + ':' + field.dataset.auditKey;
+      const updateCount = () => {{
+        filled.textContent = String(fields.filter((field) => field.value.trim()).length);
+      }};
+      const setMessage = (text) => {{ message.textContent = text; }};
+
+      fields.forEach((field) => {{
+        field.value = localStorage.getItem(storageKey(field)) || '';
+        field.addEventListener('input', () => {{
+          if (field.value) localStorage.setItem(storageKey(field), field.value);
+          else localStorage.removeItem(storageKey(field));
+          updateCount();
+        }});
+      }});
+      updateCount();
+
+      document.getElementById('export-reviews').addEventListener('click', () => {{
+        const opinions = {{}};
+        fields.forEach((field) => {{
+          if (field.value.trim()) opinions[field.dataset.auditKey] = field.value;
+        }});
+        const payload = {{
+          schema: 'lieshi_ocr_story_review_opinions',
+          version: 1,
+          exported_at: new Date().toISOString(),
+          report_path: location.pathname,
+          record_count: fields.length,
+          filled_count: Object.keys(opinions).length,
+          opinions,
+        }};
+        const blob = new Blob([JSON.stringify(payload, null, 2) + '\\n'], {{type: 'application/json'}});
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = 'story_review_opinions.json';
+        link.click();
+        URL.revokeObjectURL(url);
+        setMessage('已导出 ' + payload.filled_count + ' 条人工意见。');
+      }});
+
+      document.getElementById('import-reviews').addEventListener('change', async (event) => {{
+        const input = event.currentTarget;
+        const file = input.files && input.files[0];
+        if (!file) return;
+        try {{
+          const payload = JSON.parse(await file.text());
+          if (payload.schema !== 'lieshi_ocr_story_review_opinions' || payload.version !== 1 || !payload.opinions || typeof payload.opinions !== 'object' || Array.isArray(payload.opinions)) {{
+            throw new Error('invalid review export');
+          }}
+          let imported = 0;
+          fields.forEach((field) => {{
+            const value = payload.opinions[field.dataset.auditKey];
+            if (typeof value !== 'string') return;
+            field.value = value;
+            if (value) localStorage.setItem(storageKey(field), value);
+            else localStorage.removeItem(storageKey(field));
+            imported += 1;
+          }});
+          updateCount();
+          setMessage('已导入 ' + imported + ' 条匹配的人工意见。');
+        }} catch (_error) {{
+          setMessage('导入失败：文件格式或版本不受支持。');
+        }} finally {{
+          input.value = '';
+        }}
+      }});
+
+      document.getElementById('clear-reviews').addEventListener('click', () => {{
+        if (!confirm('确认清空本报告的全部人工意见？此操作不可撤销，建议先导出备份。')) return;
+        fields.forEach((field) => {{
+          localStorage.removeItem(storageKey(field));
+          field.value = '';
+        }});
+        updateCount();
+        setMessage('已清空本报告的人工意见。');
+      }});
+    }})();
   </script>
 </body>
 </html>
