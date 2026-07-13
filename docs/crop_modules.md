@@ -7,13 +7,14 @@
 - `src/lieshi_ocr/crop/geometry.py`：PDF 点坐标矩形 `PdfRect`，支持裁剪到页面范围、转 manifest 列表、缩放到像素边界、像素框反算 PDF 框。
 - `src/lieshi_ocr/crop/layouts.py`：当前扫描版式的稳定区域定义，包括整块有效区域、三段拆分区域、region pipeline 候选区域。
 - `src/lieshi_ocr/crop/line_rules.py`：从 legacy 线检测脚本中抽出的纯几何规则，输入模拟线坐标，输出 name/correction 单元格像素边界和命名规则。
+- `src/lieshi_ocr/crop/name_cell_detector.py`：可选 OpenCV adapter，只读渲染姓名候选区、检测表格线，并把线中心交给 `name_cell_bounds_from_lines()` 生成更窄的姓名值单元格。
 - `src/lieshi_ocr/crop/naming.py`：裁剪输出文件名清洗和 PDF/JSON 成对唯一命名。
 - `src/lieshi_ocr/crop/pdf_adapter.py`：PyMuPDF 最小 adapter，读取页尺寸、生成 dry-run 裁剪计划，或在显式调用时保存单个裁剪 PDF。
 - `src/lieshi_ocr/crop/batch.py`：裁剪批处理计划和显式写出入口，扫描 `data/scan/{batch}/`，默认只写 manifest，显式要求时写裁剪 PDF。
 - `src/lieshi_ocr/crop/precheck.py`：只读裁剪预检计划，基于输入 PDF 路径和布局生成 manifest 数据。
 - `src/lieshi_ocr/crop/records.py`：裁剪 manifest 的轻量记录模型。
 
-除 `pdf_adapter.py` 外，这些模块都是纯 Python，不依赖 PyMuPDF、OpenCV、Pillow 或 OCR 引擎。
+`name_cell_detector.py` 只在显式启用姓名细化时加载 OpenCV；默认 crop 路线不会导入该可选依赖。
 `precheck.py` 不打开 PDF、不创建目录、不写 JSON 文件、不运行 OCR、不读写 Excel。
 `line_rules.py` 不做图像二值化或线检测，只接收调用方已经得到的线坐标或测试构造的模拟坐标。
 `CropLayout.clipped_regions()` 只根据调用方传入的页面矩形裁剪固定区域，不读取真实 PDF 页面。
@@ -32,10 +33,14 @@
 
 后续可以逐个脚本替换公共逻辑，例如先把 `safe_filename`、`unique_output_paths` 和固定区域常量替换为新模块，再单独验证输出一致性。
 
-## 下一步
+## 姓名单元格细化
 
-建议下一轮优先做单文件裁剪命令的 dry-run 验收：
+安装可选视觉依赖：
 
-1. 只允许处理调用方显式传入的单个 PDF 路径。
-2. 默认输出 dry-run 计划，不写裁剪 PDF。
-3. 仍然不跑 OCR、不读写 Excel、不扫描真实 `data/scan/`。
+```powershell
+python -m pip install -e ".[vision]"
+```
+
+只有显式传入 `--refine-name-cell` 时，batch pipeline 才会把固定 name rect 作为候选区并检测最终姓名值单元格。检测失败时使用候选区内部的保守固定框，并写入 `name_cell_detection_fallback` warning；不会回退到整个宽候选区。
+
+`--write-debug` 只有显式传入时才写 `data/work/{batch}/crop_debug/*__name_detection.png`，并且必须与 `--refine-name-cell` 一起使用。code 和 correction crop 不受该功能影响。
