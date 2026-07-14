@@ -7,6 +7,7 @@ from typing import Any
 
 from lieshi_ocr.excel.apply_changes import apply_approved_changes
 from lieshi_ocr.excel.dry_run import build_excel_dry_run, write_dry_run_outputs
+from lieshi_ocr.excel.v6 import build_v6_dry_run, write_v6_dry_run
 
 
 def run_excel_dry_run(base_xlsx: str | Path, records_path: str | Path, out_dir: str | Path) -> dict[str, Any]:
@@ -24,6 +25,22 @@ def run_excel_dry_run(base_xlsx: str | Path, records_path: str | Path, out_dir: 
         "change_count": len(report.proposed_changes),
         "blocked_count": len(report.blocked_changes),
         "record_count": len(report.record_results),
+    }
+
+
+def run_v6_dry_run(base_xlsx: str | Path, records_path: str | Path, out_dir: str | Path) -> dict[str, Any]:
+    target_dir = Path(out_dir)
+    json_path = target_dir / "v6_dry_run_report.json"
+    markdown_path = target_dir / "v6_dry_run_report.md"
+    report = build_v6_dry_run(base_xlsx=base_xlsx, records_path=records_path)
+    write_v6_dry_run(report, json_path=json_path, markdown_path=markdown_path)
+    return {
+        "base_xlsx": Path(base_xlsx).as_posix(),
+        "records": Path(records_path).as_posix(),
+        "out_dir": target_dir.as_posix(),
+        "dry_run_json": json_path.as_posix(),
+        "dry_run_markdown": markdown_path.as_posix(),
+        **report["summary"],
     }
 
 

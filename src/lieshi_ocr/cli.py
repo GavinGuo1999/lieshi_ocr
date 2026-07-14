@@ -13,7 +13,7 @@ from .paths import ProjectPaths
 from .pipeline.audit_ocr import build_ocr_audit, write_ocr_audit_outputs
 from .pipeline.audit_story import build_story_candidate_audit, write_story_candidate_audit_outputs
 from .pipeline.build_review_manifest import build_review_manifest, write_review_outputs
-from .pipeline.excel_update import run_excel_apply, run_excel_dry_run
+from .pipeline.excel_update import run_excel_apply, run_excel_dry_run, run_v6_dry_run
 from .pipeline.extract_text import extract_text_manifest, write_text_manifest
 
 
@@ -95,6 +95,11 @@ def main(argv: list[str] | None = None) -> int:
     dry_run.add_argument("--records", required=True, help="correction_records.json path.")
     dry_run.add_argument("--out-dir", required=True, help="Directory for dry_run_report.json/md.")
 
+    v6_dry_run = subparsers.add_parser("excel-v6-dry-run", help="Build the confirmed v6 candidate dry-run.")
+    v6_dry_run.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
+    v6_dry_run.add_argument("--records", required=True, help="Full correction_records.json path.")
+    v6_dry_run.add_argument("--out-dir", required=True, help="Directory for v6 dry-run JSON/Markdown.")
+
     apply = subparsers.add_parser("excel-apply", help="Apply approved Excel changes to a candidate workbook.")
     apply.add_argument("--base-xlsx", required=True, help="Explicit trusted v4 baseline workbook.")
     apply.add_argument("--dry-run", required=True, help="dry_run_report.json path.")
@@ -117,6 +122,8 @@ def main(argv: list[str] | None = None) -> int:
         return _audit_story(args)
     if args.command == "excel-dry-run":
         return _excel_dry_run(args)
+    if args.command == "excel-v6-dry-run":
+        return _excel_v6_dry_run(args)
     if args.command == "excel-apply":
         return _excel_apply(args)
     parser.error(f"Unknown command: {args.command}")
@@ -304,6 +311,12 @@ def _build_review(args: argparse.Namespace) -> int:
 
 def _excel_dry_run(args: argparse.Namespace) -> int:
     summary = run_excel_dry_run(base_xlsx=args.base_xlsx, records_path=args.records, out_dir=args.out_dir)
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    return 0
+
+
+def _excel_v6_dry_run(args: argparse.Namespace) -> int:
+    summary = run_v6_dry_run(base_xlsx=args.base_xlsx, records_path=args.records, out_dir=args.out_dir)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 0
 

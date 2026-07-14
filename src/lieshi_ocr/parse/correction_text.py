@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 import re
 from typing import Any
 
-from .normalize import normalize_field_name, normalize_text
+from .normalize import FIELD_ALIASES, normalize_field_name, normalize_text
 
 DATE_PATTERN = r"\d{4}\s*\u5e74(?:\s*\d{1,2}\s*\u6708(?:\s*\d{1,2}\s*\u65e5)?)?"
 
@@ -118,22 +118,29 @@ def parse_correction_text(text: str) -> ParseResult:
     return ParseResult(fields=fields, normalized_text=normalized, warnings=warnings)
 
 
-_COMPLETION_START = re.compile(r"(?m)^(?P<label>[^\n]{1,48}?)\s*补充完善为")
+_COMPLETION_START = re.compile(r"(?P<label>[^\n“”\"：:，,。；;]{1,80}?)\s*补充完善为")
+
+
+@dataclass(frozen=True)
+class _CompletionStart:
+    raw_label: str
+    start: int
+    value_start: int
 
 
 def _parse_completion_items(text: str, fields: dict[str, str]) -> tuple[list[CorrectionItem], list[str]]:
     line_text = text.replace("\r\n", "\n").replace("\r", "\n")
-    starts = list(_COMPLETION_START.finditer(line_text))
+    starts = _completion_starts(line_text)
     if not starts:
         return [], []
 
     items: list[CorrectionItem] = []
     warnings: list[str] = []
     for index, match in enumerate(starts):
-        raw_label = _clean_completion_label(match.group("label"))
+        raw_label = match.raw_label
         canonical = normalize_field_name(raw_label)
-        chunk_end = starts[index + 1].start() if index + 1 < len(starts) else len(line_text)
-        chunk = line_text[match.end():chunk_end]
+        chunk_end = starts[index + 1].start if index + 1 < len(starts) else len(line_text)
+        chunk = line_text[match.value_start:chunk_end]
         value, reason, item_warnings = _split_completion_value_reason(chunk)
         if canonical != raw_label:
             item_warnings.append(f"field_label_normalized:{raw_label}->{canonical}")
@@ -180,6 +187,55 @@ def _parse_completion_items(text: str, fields: dict[str, str]) -> tuple[list[Cor
     if items:
         warnings.append("structured_correction_items_parsed")
     return items, _dedupe(warnings)
+
+
+def _completion_starts(text: str) -> list[_CompletionStart]:
+    starts: list[_CompletionStart] = []
+    for match in _COMPLETION_START.finditer(text):
+        candidate = match.group("label")
+        raw_label, offset = _completion_label_suffix(candidate)
+        starts.append(
+            _CompletionStart(
+                raw_label=raw_label,
+                start=match.start("label") + offset,
+                value_start=match.end(),
+            )
+        )
+    return starts
+
+
+def _completion_label_suffix(candidate: str) -> tuple[str, int]:
+    """Return the label at the end of a MinerU completion-marker prefix."""
+
+    leading = len(candidate) - len(candidate.lstrip())
+    cleaned = candidate.strip()
+    if not cleaned:
+        return "", 0
+
+    page_matches = list(re.finditer(r"第\s*\d+\s*页", cleaned))
+    if page_matches:
+        cleaned = cleaned[page_matches[-1].end():].lstrip()
+
+    aliases = sorted({*FIELD_NAMES, *FIELD_ALIASES}, key=len, reverse=True)
+    for alias in aliases:
+        if cleaned.endswith(alias):
+            relative = candidate.rfind(alias)
+            return _clean_completion_label(alias), relative
+
+    semantic = re.search(
+        r"(?P<label>[\[|丨A-Za-z\u4e00-\u9fff（）()、/]{1,32}"
+        r"(?:时间|地点|原因|事迹|迹|籍贯|贯|民族|族|政治面貌|职务|安葬地|葬地|性别|立功受奖))$",
+        cleaned,
+    )
+    if semantic:
+        label = semantic.group("label")
+        relative = candidate.rfind(label)
+        return _clean_completion_label(label), relative
+
+    if len(cleaned) <= 32:
+        relative = candidate.rfind(cleaned)
+        return _clean_completion_label(cleaned), relative
+    return "", leading
 
 
 def _clean_completion_label(value: str) -> str:

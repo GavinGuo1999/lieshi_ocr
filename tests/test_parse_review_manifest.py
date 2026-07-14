@@ -116,6 +116,27 @@ class ParseReviewManifestTests(unittest.TestCase):
         self.assertEqual(result.fields["民族"], "汉族")
         self.assertIn("field_inferred_from_reason:牺牲原因", result.items[0].warnings)
 
+    def test_structured_completion_items_split_markers_joined_on_one_line(self) -> None:
+        result = parse_correction_text(
+            "藉贯补充完善为“某县某村”理由：原籍贯登记不完善，依据名录第51页"
+            "参加革命（工作）时间补充完善为“1946年6月”理由：原参加革命时间登记不完善，"
+            "依据名录第51页。"
+        )
+
+        self.assertEqual(result.fields["籍贯"], "某县某村")
+        self.assertEqual(result.fields["参加革命/工作时间"], "1946年6月")
+        self.assertEqual(len(result.items), 2)
+        self.assertNotIn("参加革命", result.items[0].reason)
+
+    def test_structured_completion_items_keep_only_suffix_label_after_reason_text(self) -> None:
+        result = parse_correction_text(
+            "原因补充完善为“某内容”理由：依据名录第90页。"
+            "前一项识别残片“某内容”事迹补充完善为“完整事迹正文”理由：依据档案。"
+        )
+
+        self.assertEqual(result.fields["事迹"], "完整事迹正文")
+        self.assertEqual(result.items[-1].raw_label, "事迹")
+
     def test_parse_correction_text_normalizes_common_labels_and_line_breaks(self) -> None:
         result = parse_correction_text(
             "编号：QX-0001\n"
