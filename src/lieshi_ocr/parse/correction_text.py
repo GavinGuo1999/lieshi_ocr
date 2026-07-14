@@ -25,28 +25,49 @@ FIELD_NAMES = [
     "牺牲原因",
     "事迹",
     "安葬地",
+    "性别",
 ]
 
 _FIELD_PATTERN = re.compile(r"(?P<label>[\u4e00-\u9fff/、]+)\s*:\s*")
 
 
-FIELD_SACRIFICE_TIME = FIELD_NAMES[9]
-FIELD_SACRIFICE_PLACE = FIELD_NAMES[10]
-FIELD_SACRIFICE_REASON = FIELD_NAMES[11]
-FIELD_STORY = FIELD_NAMES[12]
-FIELD_BURIAL = FIELD_NAMES[13]
+FIELD_SACRIFICE_TIME = "牺牲时间"
+FIELD_SACRIFICE_PLACE = "牺牲地点"
+FIELD_SACRIFICE_REASON = "牺牲原因"
+FIELD_STORY = "事迹"
+FIELD_BURIAL = "安葬地"
+
+
+@dataclass(frozen=True)
+class CorrectionItem:
+    raw_label: str
+    field: str
+    value: str
+    reason: str
+    warnings: list[str] = field(default_factory=list)
+
+    def to_json(self) -> dict[str, Any]:
+        return {
+            "raw_label": self.raw_label,
+            "field": self.field,
+            "value": self.value,
+            "reason": self.reason,
+            "warnings": self.warnings,
+        }
 
 
 @dataclass(frozen=True)
 class ParseResult:
     fields: dict[str, str]
     normalized_text: str
+    items: list[CorrectionItem] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def to_json(self) -> dict[str, Any]:
         return {
             "fields": self.fields,
             "normalized_text": self.normalized_text,
+            "items": [item.to_json() for item in self.items],
             "warnings": self.warnings,
         }
 
@@ -66,6 +87,11 @@ def parse_correction_text(text: str) -> ParseResult:
     normalized = normalize_text(text)
     fields = empty_fields()
     warnings: list[str] = []
+    items, item_warnings = _parse_completion_items(text, fields)
+    warnings.extend(item_warnings)
+    if items:
+        return ParseResult(fields=fields, normalized_text=normalized, items=items, warnings=warnings)
+
     matches = list(_FIELD_PATTERN.finditer(normalized))
 
     recognized: list[tuple[str, int, int]] = []
@@ -90,6 +116,121 @@ def parse_correction_text(text: str) -> ParseResult:
         fields, warnings = _parse_unlabeled_text(normalized, fields, warnings)
 
     return ParseResult(fields=fields, normalized_text=normalized, warnings=warnings)
+
+
+_COMPLETION_START = re.compile(r"(?m)^(?P<label>[^\n]{1,48}?)\s*补充完善为")
+
+
+def _parse_completion_items(text: str, fields: dict[str, str]) -> tuple[list[CorrectionItem], list[str]]:
+    line_text = text.replace("\r\n", "\n").replace("\r", "\n")
+    starts = list(_COMPLETION_START.finditer(line_text))
+    if not starts:
+        return [], []
+
+    items: list[CorrectionItem] = []
+    warnings: list[str] = []
+    for index, match in enumerate(starts):
+        raw_label = _clean_completion_label(match.group("label"))
+        canonical = normalize_field_name(raw_label)
+        chunk_end = starts[index + 1].start() if index + 1 < len(starts) else len(line_text)
+        chunk = line_text[match.end():chunk_end]
+        value, reason, item_warnings = _split_completion_value_reason(chunk)
+        if canonical != raw_label:
+            item_warnings.append(f"field_label_normalized:{raw_label}->{canonical}")
+        if canonical not in fields:
+            reason_field = _field_from_reason(reason)
+            if reason_field:
+                canonical = reason_field
+                field_name = canonical
+                item_warnings.append(f"field_inferred_from_reason:{canonical}")
+                warnings.append(f"field_inferred_from_reason:{canonical}")
+                if not value:
+                    item_warnings.append("empty_value")
+                    warnings.append(f"{canonical}:empty_value")
+                elif fields[canonical] and fields[canonical] != value:
+                    item_warnings.append("multiple_values")
+                    warnings.append(f"{canonical}:multiple_values")
+                    fields[canonical] = f"{fields[canonical]} | {value}"
+                else:
+                    fields[canonical] = value
+            else:
+                item_warnings.append("unrecognized_correction_field")
+                warnings.append(f"unrecognized_correction_field:{raw_label}")
+                field_name = ""
+        else:
+            field_name = canonical
+            if not value:
+                item_warnings.append("empty_value")
+                warnings.append(f"{canonical}:empty_value")
+            elif fields[canonical] and fields[canonical] != value:
+                item_warnings.append("multiple_values")
+                warnings.append(f"{canonical}:multiple_values")
+                fields[canonical] = f"{fields[canonical]} | {value}"
+            else:
+                fields[canonical] = value
+        items.append(
+            CorrectionItem(
+                raw_label=raw_label,
+                field=field_name,
+                value=value,
+                reason=reason,
+                warnings=_dedupe(item_warnings),
+            )
+        )
+    if items:
+        warnings.append("structured_correction_items_parsed")
+    return items, _dedupe(warnings)
+
+
+def _clean_completion_label(value: str) -> str:
+    value = re.sub(r"^[\s•·|丨\d.、]+", "", value)
+    return re.sub(r"\s+", "", value).strip(" ;；,，。")
+
+
+def _split_completion_value_reason(chunk: str) -> tuple[str, str, list[str]]:
+    normalized = re.sub(r"[ \t\u3000]+", " ", chunk).strip()
+    reason_match = re.search(r"理由\s*[:：]", normalized)
+    warnings: list[str] = []
+    if reason_match:
+        value_text = normalized[:reason_match.start()]
+        reason_text = normalized[reason_match.end():]
+    else:
+        value_text = normalized
+        reason_text = ""
+        warnings.append("reason_marker_missing")
+    value = _clean_quoted_value(value_text)
+    reason = _clean_value(reason_text)
+    return value, reason, warnings
+
+
+def _clean_quoted_value(value: str) -> str:
+    value = _clean_value(value)
+    value = value.strip('“”"\'')
+    return value.strip(" ;；,，。")
+
+
+def _field_from_reason(reason: str) -> str:
+    compact = re.sub(r"\s+", "", reason)
+    hints = {
+        "籍贯": ("原籍贯",),
+        "出生时间": ("原出生时间",),
+        "参加革命/工作时间": ("原参加革命", "原参加工作"),
+        "政治面貌": ("原政治面貌",),
+        "民族": ("原民族",),
+        "生前单位及曾任职务": ("原生前", "原单位及职务"),
+        "曾任职务": ("原曾任职务",),
+        "牺牲时间": ("原牺牲时间",),
+        "牺牲地点": ("原牺牲地点",),
+        "牺牲原因": ("原牺牲原因",),
+        "事迹": ("原事迹",),
+        "安葬地": ("原安葬地",),
+    }
+    matched = [
+        field_name
+        for field_name, needles in hints.items()
+        if any(needle in compact for needle in needles)
+    ]
+    return matched[0] if len(matched) == 1 else ""
 
 
 def _parse_unlabeled_text(text: str, fields: dict[str, str], warnings: list[str]) -> tuple[dict[str, str], list[str]]:

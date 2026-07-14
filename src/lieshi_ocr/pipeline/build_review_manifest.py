@@ -8,7 +8,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from lieshi_ocr.parse.correction_text import FIELD_NAMES, empty_fields, parse_correction_text
+from lieshi_ocr.parse.correction_text import CorrectionItem, FIELD_NAMES, empty_fields, parse_correction_text
 from lieshi_ocr.parse.normalize import normalize_text
 
 JsonDict = dict[str, Any]
@@ -46,6 +46,7 @@ class CorrectionRecord:
     fields: dict[str, str]
     raw_text: str
     normalized_text: str
+    items: list[CorrectionItem]
     regions: dict[str, RegionText]
     warnings: list[str] = field(default_factory=list)
 
@@ -59,6 +60,7 @@ class CorrectionRecord:
             "fields": self.fields,
             "raw_text": self.raw_text,
             "normalized_text": self.normalized_text,
+            "items": [item.to_json() for item in self.items],
             "regions": {name: region.to_json() for name, region in self.regions.items()},
             "warnings": self.warnings,
         }
@@ -214,6 +216,7 @@ def _build_record(batch: str, source_key: str, source_records: list[JsonDict]) -
         fields=fields,
         raw_text=correction_text,
         normalized_text=normalize_text(correction_text),
+        items=parse_result.items,
         regions=regions,
         warnings=_dedupe(warnings),
     )

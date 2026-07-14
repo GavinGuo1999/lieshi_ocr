@@ -64,6 +64,58 @@ def _write_text_manifest(path: Path, correction_text: str, code_text: str = "QX-
 
 
 class ParseReviewManifestTests(unittest.TestCase):
+    def test_structured_completion_items_normalize_labels_and_preserve_values(self) -> None:
+        result = parse_correction_text(
+            "音贯补充完善为“某县某村”理由：依据档案第1页。\n"
+            "三前（部队）单位及曾任职务补充完善为“暂一师武二队排长”理由：依据名录。\n"
+            "西牲时间补充完善为“1942年7月”理由：依据档案。"
+        )
+
+        self.assertEqual(result.fields["籍贯"], "某县某村")
+        self.assertEqual(result.fields["生前单位及曾任职务"], "暂一师武二队排长")
+        self.assertEqual(result.fields["牺牲时间"], "1942年7月")
+        self.assertEqual(len(result.items), 3)
+        self.assertEqual(result.items[1].raw_label, "三前（部队）单位及曾任职务")
+        self.assertEqual(result.items[1].field, "生前单位及曾任职务")
+        self.assertEqual(result.items[1].value, "暂一师武二队排长")
+        self.assertEqual(result.items[1].reason, "依据名录")
+        self.assertIn("structured_correction_items_parsed", result.warnings)
+
+    def test_structured_completion_items_recover_missing_first_char_labels(self) -> None:
+        result = parse_correction_text(
+            "出年时间补充完善为“1920年”理由：依据档案。\n"
+            "族补充完善为“汉族”理由：依据名录。\n"
+            "牲地点补充完善为“某地”理由：依据档案。\n"
+            "葬地补充完善为“某县”理由：依据档案。"
+        )
+
+        self.assertEqual(result.fields["出生时间"], "1920年")
+        self.assertEqual(result.fields["民族"], "汉族")
+        self.assertEqual(result.fields["牺牲地点"], "某地")
+        self.assertEqual(result.fields["安葬地"], "某县")
+        self.assertTrue(
+            any("field_label_normalized:牲地点->牺牲地点" in item.warnings for item in result.items)
+        )
+
+    def test_structured_completion_items_keep_unknown_labels_for_review(self) -> None:
+        result = parse_correction_text("未知项目补充完善为“原样内容”理由：需人工确认。")
+
+        self.assertEqual(len(result.items), 1)
+        self.assertEqual(result.items[0].field, "")
+        self.assertEqual(result.items[0].value, "原样内容")
+        self.assertEqual(result.items[0].reason, "需人工确认")
+        self.assertIn("unrecognized_correction_field", result.items[0].warnings)
+
+    def test_structured_completion_items_use_unique_reason_field_hint(self) -> None:
+        result = parse_correction_text(
+            "|补充完善为“战斗中牺牲”理由：原牺牲原因登记不完善，依据档案。\n"
+            "已族补充完善为“汉族”理由：原民族登记不完善。"
+        )
+
+        self.assertEqual(result.fields["牺牲原因"], "战斗中牺牲")
+        self.assertEqual(result.fields["民族"], "汉族")
+        self.assertIn("field_inferred_from_reason:牺牲原因", result.items[0].warnings)
+
     def test_parse_correction_text_normalizes_common_labels_and_line_breaks(self) -> None:
         result = parse_correction_text(
             "编号：QX-0001\n"
@@ -165,6 +217,20 @@ class ParseReviewManifestTests(unittest.TestCase):
             self.assertEqual(record.regions["correction"].text_source, "data/work/20260626/mineru/sample.md")
             self.assertIn("code_conflict", record.warnings)
             self.assertIn("name_conflict", record.warnings)
+
+    def test_build_review_manifest_keeps_structured_items_and_reasons(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            text_manifest = root / "text_manifest.json"
+            correction = "音贯补充完善为“某县”理由：依据档案。"
+            _write_text_manifest(text_manifest, correction)
+
+            manifest = build_review_manifest(text_manifest, root / "review")
+            payload = manifest.to_json()
+
+            self.assertEqual(manifest.records[0].fields["籍贯"], "某县")
+            self.assertEqual(manifest.records[0].items[0].field, "籍贯")
+            self.assertEqual(payload["records"][0]["items"][0]["reason"], "依据档案")
 
     def test_missing_code_name_are_warnings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
