@@ -19,9 +19,9 @@
 
 本地生成文件：
 
-`data/work/20260626/correction_ocr_review/10条OCR修正内容核对表.xlsx`
+`data/output/20260626/10条OCR修正内容核对表.xlsx`
 
-该工作簿包含真实姓名和修正内容，位于被 Git 忽略的 `data/work/`，不得提交或公开上传。
+该工作簿包含真实姓名和修正内容，位于被 Git 忽略的 `data/output/`，不得提交或公开上传。
 
 ## 核对表字段
 
